@@ -5,6 +5,7 @@ setup(
     version="0.0.8",
     packages=find_packages(),
     install_requires=[
+        "snscrape",
         "exorde_data",
         "aiohttp",
         "python-dotenv",

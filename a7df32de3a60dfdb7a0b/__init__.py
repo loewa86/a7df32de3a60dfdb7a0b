@@ -191,12 +191,12 @@ async def get_sns_tweets(
 
 def check_env():
     # Check if the .env file exists
-    if not os.path.exists("/.env"):
-        logging.info("/.env file does not exist.")
+    if not os.path.exists(".env"):
+        logging.info(".env file does not exist.")
         return False
 
     # Read the .env file
-    with open("/.env", "r") as f:
+    with open(".env", "r") as f:
         content = f.read()
 
     # Split the content into lines
@@ -432,7 +432,7 @@ def init_driver(
     show_images=False,
     option=None,
     firefox=False,
-    env="/.env",
+    env=".env",
 ):
     """initiate a chromedriver or firefoxdriver instance
     --option : other option to add (str)
@@ -595,7 +595,7 @@ def clear_cookies():
         logging.info("Clear cookies error: %s", e)
 
 
-def log_in(env="/.env", wait=4):
+def log_in(env=".env", wait=4):
     global driver
 
     cookies_added = 0

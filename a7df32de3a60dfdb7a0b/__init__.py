@@ -35,7 +35,7 @@ from exorde_data import (
     ExternalId,
     ExternalParentId,
 )
-import chromedriver_autoinstaller
+# import chromedriver_autoinstaller
 import subprocess
 import signal
 

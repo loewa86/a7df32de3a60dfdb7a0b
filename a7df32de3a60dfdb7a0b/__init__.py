@@ -921,6 +921,41 @@ def read_parameters(parameters):
     return max_oldness_seconds, maximum_items_to_collect, min_post_length
 
 
+def self_update():
+    try:
+        logging.info("[SELF CLIENT UPDATE (force)] Checking...")
+        # Try to get latest tag, if not possible, log and return
+        try:
+            latest_tag = await get_latest_tag()
+        except Exception as e:
+            logging.info("[SELF CLIENT UPDATE] Unable to retrieve latest tag from GitHub: %s", e)
+            return
+        
+        # Try to get local version, if not found set default version
+        try:
+            local_version = metadata.version("exorde")
+        except metadata.PackageNotFoundError:
+            logging.info("Package 'exorde' not found in the system. Setting default version")
+            local_version = "0.0.1"
+        logging.info(f"[CLIENT VERSION] Online latest version of the exorde-client: {latest_tag}, local version: {local_version}")        
+        
+        try:
+            logging.info(f"[SELF CLIENT UPDATE] Updating from {local_version} to version {latest_tag}")
+            exorde_repository_path = "git+https://github.com/exorde-labs/exorde-client.git"
+            data_repository_path = "git+https://github.com/exorde-labs/exorde_data.git"
+            try:
+                subprocess.check_call(["pip", "install", "--user", exorde_repository_path])
+                subprocess.check_call(["pip", "install", "--user", data_repository_path])
+            except subprocess.CalledProcessError as e:
+                logging.info("[SELF CLIENT UPDATE] Update failed, pip install returned non-zero exit status: %s", e)
+                return
+            os._exit(42)
+        except version.InvalidVersion:
+            logging.info("Error parsing version string")
+    except Exception as e:
+        logging.info("[SELF CLIENT UPDATE (force)] Error during self update: %s", e)
+
+
 async def query(parameters: dict) -> AsyncGenerator[Item, None]:
     global driver, MAX_EXPIRATION_SECONDS, status_rate_limited    
 
@@ -985,6 +1020,7 @@ async def query(parameters: dict) -> AsyncGenerator[Item, None]:
     else:
         logging.getLogger("snscrape").setLevel(logging.WARNING)
         logging.info("[Twitter Snscrape] Disabled because of Elon Musk. Let's fight back, let's log in & collect!")
+        self_update()
         # # SNSCRAPE track b
         # nb_tweets_wanted = 30
         # select_top_tweets = False

@@ -926,7 +926,10 @@ async def query(parameters: dict) -> AsyncGenerator[Item, None]:
 
     max_oldness_seconds, maximum_items_to_collect, min_post_length = read_parameters(parameters)
     MAX_EXPIRATION_SECONDS = max_oldness_seconds
-    yielded_items = 0  # Counter for the number of yielded items
+    try:
+        search_keyword = parameters["keyword"]
+    except:    
+        search_keyword = random.choice(SPECIAL_KEYWORDS_LIST)
 
     search_keyword = convert_spaces_to_percent20(search_keyword)
     logging.info("[Twitter] internal Keyword used = %s",search_keyword)

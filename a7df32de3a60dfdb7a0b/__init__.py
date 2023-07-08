@@ -45,7 +45,8 @@ driver = None
 global status_rate_limited
 status_rate_limited = False
 
-MAX_EXPIRATION_HARDCODED_SECONDS = 180
+global MAX_EXPIRATION_SECONDS
+MAX_EXPIRATION_SECONDS = 180
 
 #############################################################################
 #############################################################################
@@ -103,6 +104,7 @@ async def get_sns_tweets(
     Returns:
         list: List of found tweets as dictionaries.
     """
+    global MAX_EXPIRATION_SECONDS
     today = date.today()
     c = 0
     # found_tweets = []
@@ -153,7 +155,7 @@ async def get_sns_tweets(
         tr_post["creationDateTime"] = post["date"]
         if tr_post["creationDateTime"] is not None:
             newness =  is_within_timeframe_seconds_snscrape(
-                tr_post["creationDateTime"], MAX_EXPIRATION_HARDCODED_SECONDS
+                tr_post["creationDateTime"], MAX_EXPIRATION_SECONDS
             )
             if not newness:
                 break  # finish the generation if we scrolled further than 5min old tweets
@@ -643,7 +645,7 @@ max_old_tweets_successive = 2
 def keep_scroling(data, tweet_ids, scrolling, tweet_parsed, limit, scroll, last_position,
                   save_images=False):
     """ scrolling function for tweets crawling"""
-    global driver
+    global driver, MAX_EXPIRATION_SECONDS
 
     save_images_dir = "/images"
     if save_images == True:
@@ -679,7 +681,7 @@ def keep_scroling(data, tweet_ids, scrolling, tweet_parsed, limit, scroll, last_
                 tweet_id = ''.join(tweet[:-2])
                 last_date = str(tweet[2])
                 if tweet_id not in tweet_ids:
-                    if is_within_timeframe_seconds(last_date, MAX_EXPIRATION_HARDCODED_SECONDS):
+                    if is_within_timeframe_seconds(last_date, MAX_EXPIRATION_SECONDS):
                         tweet_ids.add(tweet_id)
                         data.append(tweet)
                         logging.info(f"[Tweet] Date = {last_date}")
@@ -878,7 +880,7 @@ special_mode = True
 SPECIAL_KEYWORDS_LIST = ["bitcoin", "ethereum", "eth", "btc", "usdt", "cryptocurrency", "solana",
  "doge", "cardano", "monero", "polkadot", "ripple", "xrp", "stablecoin", "defi", "cbdc", "nasdaq",
  "sp500", "s&p500", "BNB", "ETF", "Spot%20ETF", "Bitcoin%20ETF", "Crypto", "%23altcoin", "DeFi", "GameFi",
- "NFT", "NFTs", "Cryptocurrencies", "Cryptos", "twitter%20limit", "digital", "%23airdrop",
+ "NFT", "NFTs", "Cryptocurrencies", "Cryptos", "twitter", "digital", "%23airdrop",
  "finance", "liquidity","token", "economy", "markets", "stocks", "crisis", "russia", "war", "ukraine"
  "luxury", "LVMH", "Elon%20musk", "conflict", "bank", "Gensler", "emeutes", "FaceID", "Riot", "riots", 
  "France%20riot", "France", "United%20states", "USA", "China", "Germany", "Europe", "European%20union%20(EU)", "Canada",
@@ -888,20 +890,43 @@ SPECIAL_KEYWORDS_LIST = ["bitcoin", "ethereum", "eth", "btc", "usdt", "cryptocur
 NB_SPECIAL_CHECKS = 5
 ############
 
+# default values
+DEFAULT_OLDNESS_SECONDS = 120
+DEFAULT_MAXIMUM_ITEMS = 25
+DEFAULT_MIN_POST_LENGTH = 10
 
-async def query(url: str) -> AsyncGenerator[Item, None]:
-    global driver
-    global status_rate_limited
-    if "twitter.com" not in url:
-        raise ValueError("Not a twitter URL")
-    url_parts = url.split("twitter.com/")[1].split("&")
-    search_keyword = ""    
-    if url_parts[0].startswith("search"):
-        search_keyword = url_parts[0].split("q=")[1]
+def read_parameters(parameters):
+    # Check if parameters is not empty or None
+    if parameters and isinstance(parameters, dict):
+        try:
+            max_oldness_seconds = parameters.get("max_oldness_seconds", DEFAULT_OLDNESS_SECONDS)
+        except KeyError:
+            max_oldness_seconds = DEFAULT_OLDNESS_SECONDS
 
-    if len(search_keyword) == 0:
-        logging.info("keyword not found, can't search tweets using snscrape.")
-        search_keyword = "crypto"
+        try:
+            maximum_items_to_collect = parameters.get("maximum_items_to_collect", DEFAULT_MAXIMUM_ITEMS)
+        except KeyError:
+            maximum_items_to_collect = DEFAULT_MAXIMUM_ITEMS
+
+        try:
+            min_post_length = parameters.get("min_post_length", DEFAULT_MIN_POST_LENGTH)
+        except KeyError:
+            min_post_length = DEFAULT_MIN_POST_LENGTH
+    else:
+        # Assign default values if parameters is empty or None
+        max_oldness_seconds = DEFAULT_OLDNESS_SECONDS
+        maximum_items_to_collect = DEFAULT_MAXIMUM_ITEMS
+        min_post_length = DEFAULT_MIN_POST_LENGTH
+
+    return max_oldness_seconds, maximum_items_to_collect, min_post_length
+
+
+async def query(parameters: dict) -> AsyncGenerator[Item, None]:
+    global driver, MAX_EXPIRATION_SECONDS, status_rate_limited    
+
+    max_oldness_seconds, maximum_items_to_collect, min_post_length = read_parameters(parameters)
+    MAX_EXPIRATION_SECONDS = max_oldness_seconds
+    yielded_items = 0  # Counter for the number of yielded items
 
     search_keyword = convert_spaces_to_percent20(search_keyword)
     logging.info("[Twitter] internal Keyword used = %s",search_keyword)
@@ -928,14 +953,14 @@ async def query(url: str) -> AsyncGenerator[Item, None]:
 
             try:         
                 nb_tweets_wanted = 20
-                async for result in scrape_( keyword=search_keyword, display_type="latest", limit=nb_tweets_wanted):
+                async for result in scrape_( keyword=search_keyword, display_type="latest", limit=maximum_items_to_collect):
                     yield result
                 if special_mode:
                     logging.info("[Twitter] Special mode, checking %s special keywords",NB_SPECIAL_CHECKS)
                     for _ in range(NB_SPECIAL_CHECKS):
                         special_keyword = random.choice(SPECIAL_KEYWORDS_LIST)
                         logging.info("[Twitter] [Special mode] Looking at keyword: %s",special_keyword)
-                        async for result in scrape_(keyword=special_keyword, display_type="latest", limit=nb_tweets_wanted):
+                        async for result in scrape_(keyword=special_keyword, display_type="latest", limit=maximum_items_to_collect):
                             yield result
 
             except Exception as e:
@@ -954,16 +979,16 @@ async def query(url: str) -> AsyncGenerator[Item, None]:
             except Exception as e:
                 logging.info("[Twitter Driver] Exception while closing/quitting driver =  %s",e)
 
-
     else:
         logging.getLogger("snscrape").setLevel(logging.WARNING)
-        # SNSCRAPE track b
-        nb_tweets_wanted = 30
-        select_top_tweets = False
-        if "f=live" not in url_parts:
-            select_top_tweets = True
+        logging.info("[Twitter Snscrape] Disabled because of Elon Musk. Let's fight back, let's log in & collect!")
+        # # SNSCRAPE track b
+        # nb_tweets_wanted = 30
+        # select_top_tweets = False
+        # if "f=live" not in url_parts:
+        #     select_top_tweets = True
 
-        async for result in get_sns_tweets(
-            search_keyword, select_top_tweets, nb_tweets_wanted
-        ):
-            yield result
+        # async for result in get_sns_tweets(
+        #     search_keyword, select_top_tweets, nb_tweets_wanted
+        # ):
+        #     yield result

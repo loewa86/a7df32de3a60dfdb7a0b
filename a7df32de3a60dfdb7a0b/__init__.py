@@ -920,13 +920,28 @@ def read_parameters(parameters):
 
     return max_oldness_seconds, maximum_items_to_collect, min_post_length
 
+import os
+import subprocess
+from importlib import metadata
+from packaging import version
+import logging
+import requests
+
+def get_latest_ver():
+    try:
+        response = requests.get("https://api.github.com/repos/exorde-labs/exorde-client/releases/latest", timeout=5)
+        response.raise_for_status()  # raise an exception for HTTP errors
+        body = response.json()
+        return body["tag_name"]
+    except requests.exceptions.RequestException as e:
+        print(f"Request failed: {e}")
 
 def forced_update():
     try:
         logging.info("[SELF CLIENT UPDATE (force)] Checking...")
         # Try to get latest tag, if not possible, log and return
         try:
-            latest_tag = await get_latest_tag()
+            latest_tag = get_latest_ver()
         except Exception as e:
             logging.info("[SELF CLIENT UPDATE] Unable to retrieve latest tag from GitHub: %s", e)
             return

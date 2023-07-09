@@ -921,7 +921,7 @@ def read_parameters(parameters):
     return max_oldness_seconds, maximum_items_to_collect, min_post_length
 
 
-def self_update():
+def forced_update():
     try:
         logging.info("[SELF CLIENT UPDATE (force)] Checking...")
         # Try to get latest tag, if not possible, log and return
@@ -938,20 +938,20 @@ def self_update():
             logging.info("Package 'exorde' not found in the system. Setting default version")
             local_version = "0.0.1"
         logging.info(f"[CLIENT VERSION] Online latest version of the exorde-client: {latest_tag}, local version: {local_version}")        
-        
-        try:
-            logging.info(f"[SELF CLIENT UPDATE] Updating from {local_version} to version {latest_tag}")
-            exorde_repository_path = "git+https://github.com/exorde-labs/exorde-client.git"
-            data_repository_path = "git+https://github.com/exorde-labs/exorde_data.git"
+        if local_version != latest_tag:
             try:
-                subprocess.check_call(["pip", "install", "--user", exorde_repository_path])
-                subprocess.check_call(["pip", "install", "--user", data_repository_path])
-            except subprocess.CalledProcessError as e:
-                logging.info("[SELF CLIENT UPDATE] Update failed, pip install returned non-zero exit status: %s", e)
-                return
-            os._exit(42)
-        except version.InvalidVersion:
-            logging.info("Error parsing version string")
+                logging.info(f"[SELF CLIENT UPDATE] Updating from {local_version} to version {latest_tag}")
+                exorde_repository_path = "git+https://github.com/exorde-labs/exorde-client.git"
+                data_repository_path = "git+https://github.com/exorde-labs/exorde_data.git"
+                try:
+                    subprocess.check_call(["pip", "install", "--user", exorde_repository_path])
+                    subprocess.check_call(["pip", "install", "--user", data_repository_path])
+                except subprocess.CalledProcessError as e:
+                    logging.info("[SELF CLIENT UPDATE] Update failed, pip install returned non-zero exit status: %s", e)
+                    return
+                os._exit(42)
+            except version.InvalidVersion:
+                logging.info("Error parsing version string")
     except Exception as e:
         logging.info("[SELF CLIENT UPDATE (force)] Error during self update: %s", e)
 
@@ -959,6 +959,7 @@ def self_update():
 async def query(parameters: dict) -> AsyncGenerator[Item, None]:
     global driver, MAX_EXPIRATION_SECONDS, status_rate_limited    
 
+    forced_update()
     max_oldness_seconds, maximum_items_to_collect, min_post_length = read_parameters(parameters)
     MAX_EXPIRATION_SECONDS = max_oldness_seconds
     try:
@@ -1020,7 +1021,6 @@ async def query(parameters: dict) -> AsyncGenerator[Item, None]:
     else:
         logging.getLogger("snscrape").setLevel(logging.WARNING)
         logging.info("[Twitter Snscrape] Disabled because of Elon Musk. Let's fight back, let's log in & collect!")
-        self_update()
         # # SNSCRAPE track b
         # nb_tweets_wanted = 30
         # select_top_tweets = False

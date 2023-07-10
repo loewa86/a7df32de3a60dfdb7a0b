@@ -401,7 +401,7 @@ def init_driver(headless=True, proxy=None, show_images=False, option=None, firef
         logging.info("\tAdding a HTTP Proxy server: %s", http_proxy)
         options.add_argument('--proxy-server=%s' % http_proxy)
     if headless is True:
-        options.add_argument('--disable-gpu')
+        # options.add_argument('--disable-gpu')
         options.headless = True
     else:
         options.headless = False

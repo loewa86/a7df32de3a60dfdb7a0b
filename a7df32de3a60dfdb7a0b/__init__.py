@@ -929,12 +929,14 @@ async def query(parameters: dict) -> AsyncGenerator[Item, None]:
     MAX_EXPIRATION_SECONDS = max_oldness_seconds
     search_keyword = random.choice(SPECIAL_KEYWORDS_LIST)
     try:
-        if "url_parameters" in parameters:
+        logging.info(f"[Twitter parameters] checking url_paramters: %s",parameters)    
+        if "url_parameters" in parameters and "keyword" in parameters["url_parameters"]:
             search_keyword = parameters["url_parameters"]["keyword"]
         if "keyword" in parameters:
+            logging.info(f"[Twitter parameters] checking url_paramters... ")    
             search_keyword = parameters["keyword"]   
     except Exception as e:
-        logging.info(f"[Twitter parameters] Keyword input read failed: {e}")    
+        logging.exception(f"[Twitter parameters] Keyword input read failed: {e}")    
 
     if search_keyword is None or len(search_keyword) < 1 :        
         search_keyword = random.choice(SPECIAL_KEYWORDS_LIST)

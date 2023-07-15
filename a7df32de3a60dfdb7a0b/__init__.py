@@ -979,12 +979,10 @@ async def query(parameters: dict) -> AsyncGenerator[Item, None]:
     MAX_EXPIRATION_SECONDS = max_oldness_seconds
     search_keyword = random.choice(SPECIAL_KEYWORDS_LIST)
     try:
-        if "keyword" in parameters:
-            search_keyword = parameters["keyword"]
         if "url_parameters" in parameters:
             search_keyword = parameters["url_parameters"]["keyword"]            
     except Exception as e:
-        logging.info(f"[Twitter Selenium] Keyword input read failed: {e}")    
+        logging.info(f"[Twitter] Keyword input read failed: {e}")    
 
     search_keyword = convert_spaces_to_percent20(search_keyword)
     logging.info("[Twitter] internal Keyword used = %s",search_keyword)

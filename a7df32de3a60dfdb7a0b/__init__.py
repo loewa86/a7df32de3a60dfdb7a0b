@@ -877,16 +877,29 @@ def convert_spaces_to_percent20(input_string):
 
 ##### SPECIAL MODE
 special_mode = True
-SPECIAL_KEYWORDS_LIST = ["bitcoin", "ethereum", "eth", "btc", "usdt", "cryptocurrency", "solana",
- "doge", "cardano", "monero", "polkadot", "ripple", "xrp", "stablecoin", "defi", "cbdc", "nasdaq",
- "sp500", "s&p500", "BNB", "ETF", "Spot%20ETF", "Bitcoin%20ETF", "Crypto", "%23altcoin", "DeFi", "GameFi",
- "NFT", "NFTs", "Cryptocurrencies", "Cryptos", "twitter", "digital", "%23airdrop",
- "finance", "liquidity","token", "economy", "markets", "stocks", "crisis", "russia", "war", "ukraine"
- "luxury", "LVMH", "Elon%20musk", "conflict", "bank", "Gensler", "emeutes", "FaceID", "Riot", "riots", 
- "France%20riot", "France", "United%20states", "USA", "China", "Germany", "Europe", "European%20union%20(EU)", "Canada",
+#TOP 222
+SPECIAL_KEYWORDS_LIST = ["bitcoin", "ethereum", "eth", "eth","eth","btc","btc","btc", "usdt", "cryptocurrency", "solana",
+ "doge", "cardano", "monero", "polkadot", "ripple", "xrp", "stablecoin", "defi", "cbdc", "nasdaq", "mark%20zuckerberg", "bezos",
+ "amazon", "helion", "sp500", "s&p500", "BNB", "ETF", "Spot%20ETF", "Bitcoin%20ETF", "Crypto","Crypto", "Crypto", "%23altcoin", "DeFi", "GameFi",
+ "NFT", "NFTs", "Cryptocurrencies", "Cryptos", "twitter", "digital", "%23airdrop", "worldcoin", "sam20altman", "politicians",
+ "police", "national%20security", "national%20emergency", "alert", "mint", "press", "zero knowledge", "big data", "analytics", "scraping",
+ "zksync", "polygon", "dogecoin", "solana%20sol", "attack", "attentat", "embassy", "embargo", "missile", "nuclear", "fusion", "startup",
+ "new project", "new startup", "promising company", "investor", "investors", "investing", "financing", "finance", "wall street", "hft trading",
+ "finance", "liquidity","token", "economy", "markets", "stocks", "crisis", "russia", "war", "ukraine", "currency", "currencies",
+ "legal", "legal%20tender", "official", "announcement", "breaking%20news", "newsflash", "newsfeed", "congress", "us%20president", "senate", 
+ "senator", "senators", "white house", "elisee", "kremlin", "moscow", "putin", "impeachment", "macron", "EU", "parliament", "government",
+ "governments", "authocraty", "democracy", "fascist", "communist", "extremism", "populism", "conservatives", "libertarian", "politician", 
+ "LVMH", "Elon%20musk", "conflict", "bank", "Gensler", "decentralized", "riots", "nft", "nftcommunity", "nft%20latform", "nfts",
+ "security%20token", "utility%20token", "protocols", "web3", "web3", "airdrop", "airdrops", "fair%20launch", "erc20", 
+ "Nasdaq%20100", "France", "United%20states", "USA", "China", "Germany", "Europe", "European%20union%20(EU)", "Canada",
  "Mexico", "Brazil", "%23price", "market", "%23NYSE","%23NASDAQ", "%23CAC", "CAC40", "%23G20", "%23OilPrice", "FTSE", "NYSE",
- "WallStreet", "money", "forex", "trading", "currency", "%23USD", "WarrenBuffett", "BlackRock", "Berkshire", "%23IPO",
- "Apple", "Tesla","Alphabet%20(GOOG)", "FB%20stock","debt", "%23bonds", "XAUUSD", "%23SP500", "DowJones", "satoshi"]
+ "WallStreet", "money", "forex", "trading", "currency", "%23USD", "WarrenBuffett", "Black%20Rock", "Berkshire", "%23IPO",
+ "Apple", "Tesla","Alphabet%20(GOOG)", "FB%20stock","debt", "%23bonds", "XAUUSD", "%23SP500", "DowJones", "satoshi",
+ "AUDNZD", "USDEUR", "EURUSD", "forex", "asset%20management", "market maker", "NFLX", "COIN", "Coinbase", "Binance",
+ "Kraken", "PLTR", "takeoff", "intraday", "long", "short", "buy support", "resistance sell", "holdings", "corporation",
+ "corporate", "BlackRock", "BlackRock", "ETFs", "X.com", "Xitter", "bullish", "bearish", "bulls", "bears", "bull", "bear",
+ "company", "companies", "business", "bizness", "businesses", "million", "billion", "insider", "insider trading", "trading",
+ "growth", "decline", "plummet", "sales", "founder CEO", "founders"]
 NB_SPECIAL_CHECKS = 5
 ############
 
@@ -894,6 +907,7 @@ NB_SPECIAL_CHECKS = 5
 DEFAULT_OLDNESS_SECONDS = 120
 DEFAULT_MAXIMUM_ITEMS = 25
 DEFAULT_MIN_POST_LENGTH = 10
+DEFAULT_DEFAULT_KEYWORD_WEIGHT_PICK = 0.5
 
 def read_parameters(parameters):
     # Check if parameters is not empty or None
@@ -912,20 +926,27 @@ def read_parameters(parameters):
             min_post_length = parameters.get("min_post_length", DEFAULT_MIN_POST_LENGTH)
         except KeyError:
             min_post_length = DEFAULT_MIN_POST_LENGTH
+
+        try:
+            pick_default_keyword_weight = parameters.get("pick_default_keyword_weight", DEFAULT_DEFAULT_KEYWORD_WEIGHT_PICK)
+        except KeyError:
+            pick_default_keyword_weight = DEFAULT_DEFAULT_KEYWORD_WEIGHT_PICK
     else:
         # Assign default values if parameters is empty or None
         max_oldness_seconds = DEFAULT_OLDNESS_SECONDS
         maximum_items_to_collect = DEFAULT_MAXIMUM_ITEMS
         min_post_length = DEFAULT_MIN_POST_LENGTH
+        pick_default_keyword_weight = DEFAULT_DEFAULT_KEYWORD_WEIGHT_PICK
 
-    return max_oldness_seconds, maximum_items_to_collect, min_post_length
+    return max_oldness_seconds, maximum_items_to_collect, min_post_length, pick_default_keyword_weight
 
 
 async def query(parameters: dict) -> AsyncGenerator[Item, None]:
     global driver, MAX_EXPIRATION_SECONDS, status_rate_limited    
 
     # forced_update()
-    max_oldness_seconds, maximum_items_to_collect, min_post_length = read_parameters(parameters)
+    max_oldness_seconds, maximum_items_to_collect, min_post_length, pick_default_keyword_weight = read_parameters(parameters)
+    maximum_items_to_collect_special_check = 10
     MAX_EXPIRATION_SECONDS = max_oldness_seconds
     search_keyword = random.choice(SPECIAL_KEYWORDS_LIST)
     try:
@@ -938,7 +959,7 @@ async def query(parameters: dict) -> AsyncGenerator[Item, None]:
     except Exception as e:
         logging.exception(f"[Twitter parameters] Keyword input read failed: {e}")    
 
-    if search_keyword is None or len(search_keyword) < 1 :        
+    if search_keyword is None or len(search_keyword) < 1 or  random.random() < pick_default_keyword_weight :        
         search_keyword = random.choice(SPECIAL_KEYWORDS_LIST)
 
     search_keyword = convert_spaces_to_percent20(search_keyword)
@@ -965,7 +986,6 @@ async def query(parameters: dict) -> AsyncGenerator[Item, None]:
                 logging.info("[Twitter] Exception during Twitter Init:  %s",e)
 
             try:         
-                nb_tweets_wanted = 20
                 async for result in scrape_( keyword=search_keyword, display_type="latest", limit=maximum_items_to_collect):
                     yield result
                 if special_mode:
@@ -973,7 +993,7 @@ async def query(parameters: dict) -> AsyncGenerator[Item, None]:
                     for _ in range(NB_SPECIAL_CHECKS):
                         special_keyword = random.choice(SPECIAL_KEYWORDS_LIST)
                         logging.info("[Twitter] [Special mode] Looking at keyword: %s",special_keyword)
-                        async for result in scrape_(keyword=special_keyword, display_type="latest", limit=maximum_items_to_collect):
+                        async for result in scrape_(keyword=special_keyword, display_type="latest", limit=maximum_items_to_collect_special_check):
                             yield result
 
             except Exception as e:
@@ -995,13 +1015,3 @@ async def query(parameters: dict) -> AsyncGenerator[Item, None]:
     else:
         logging.getLogger("snscrape").setLevel(logging.WARNING)
         logging.info("[Twitter Snscrape] Disabled because of Elon Musk. Let's fight back, let's log in & collect!")
-        # # SNSCRAPE track b
-        # nb_tweets_wanted = 30
-        # select_top_tweets = False
-        # if "f=live" not in url_parts:
-        #     select_top_tweets = True
-
-        # async for result in get_sns_tweets(
-        #     search_keyword, select_top_tweets, nb_tweets_wanted
-        # ):
-        #     yield result

@@ -69,7 +69,7 @@ def is_within_timeframe_seconds_snscrape(dt, timeframe_sec):
         return False
 
 def delete_org_files_in_tmp():
-    tmp_folder = 'tmp/'
+    tmp_folder = os.environ.get('TMPDIR', '/tmp/')
     target_prefix = '.org'
 
     try:

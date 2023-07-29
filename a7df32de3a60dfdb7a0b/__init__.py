@@ -37,6 +37,7 @@ from exorde_data import (
 )
 # import chromedriver_autoinstaller
 import subprocess
+import shutil
 import signal
 # import geckodriver_autoinstaller
 
@@ -67,7 +68,37 @@ def is_within_timeframe_seconds_snscrape(dt, timeframe_sec):
     else:
         return False
 
+def delete_org_files_in_tmp():
+    tmp_folder = 'tmp/'
+    target_prefix = '.org'
 
+    try:
+        # Check if the /tmp/ folder exists
+        if not os.path.exists(tmp_folder):
+            logging.info(f"Error: The directory '{tmp_folder}' does not exist.")
+            return
+
+        # Iterate through the files in /tmp/ folder
+        for filename in os.listdir(tmp_folder):
+            if filename.startswith(target_prefix):
+                file_path = os.path.join(tmp_folder, filename)
+
+                # Try to remove the file
+                try:
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                        logging.info(f"[DISK CLEANUP] Deleted file: {filename}")
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                        logging.info(f"[DISK CLEANUP] Deleted directory: {filename}")
+
+                # Handle permission errors and other exceptions
+                except Exception as e:
+                    logging.exception(f"[DISK CLEANUP] Error deleting {filename}: {e}")
+
+    except Exception as e:
+        logging.exception(f"An error occurred: {e}")
+        
 def cleanhtml(raw_html):
     """
     Clean HTML tags and entities from raw HTML text.
@@ -943,6 +974,12 @@ def read_parameters(parameters):
 
 async def query(parameters: dict) -> AsyncGenerator[Item, None]:
     global driver, MAX_EXPIRATION_SECONDS, status_rate_limited    
+
+    ## Deleting chromium tmp files taking up space
+    try:
+        delete_org_files_in_tmp()
+    except Exception as e:
+        logging.exception(f"[Twitter init cleanup] failed: {e}")    
 
     # forced_update()
     max_oldness_seconds, maximum_items_to_collect, min_post_length, pick_default_keyword_weight = read_parameters(parameters)

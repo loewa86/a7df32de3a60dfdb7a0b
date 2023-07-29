@@ -75,7 +75,7 @@ def delete_org_files_in_tmp():
     try:
         # Check if the /tmp/ folder exists
         if not os.path.exists(tmp_folder):
-            logging.info(f"Error: The directory '{tmp_folder}' does not exist.")
+            logging.info(f"[DISK CLEANUP] Error: The directory '{tmp_folder}' does not exist.")
             return
 
         # Iterate through the files in /tmp/ folder

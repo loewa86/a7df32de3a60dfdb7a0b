@@ -912,7 +912,7 @@ special_mode = True
 SPECIAL_KEYWORDS_LIST = ["bitcoin", "ethereum", "eth", "eth","eth","btc","btc","btc", "usdt", "cryptocurrency", "solana",
  "doge", "cardano", "monero", "polkadot", "ripple", "xrp", "stablecoin", "defi", "cbdc", "nasdaq", "mark%20zuckerberg", "bezos",
  "amazon", "helion", "sp500", "s&p500", "BNB", "ETF", "Spot%20ETF", "Bitcoin%20ETF", "Crypto","Crypto", "Crypto", "%23altcoin", "DeFi", "GameFi",
- "NFT", "NFTs", "Cryptocurrencies", "Cryptos", "twitter", "digital", "%23airdrop", "worldcoin", "sam20altman", "politicians",
+ "NFT", "NFTs", "Cryptocurrencies", "Cryptos", "twitter", "digital", "%23airdrop", "worldcoin", "politicians",
  "police", "national%20security", "national%20emergency", "alert", "mint", "press", "zero knowledge", "big data", "analytics", "scraping",
  "zksync", "polygon", "dogecoin", "solana%20sol", "attack", "attentat", "embassy", "embargo", "missile", "nuclear", "fusion", "startup",
  "new project", "new startup", "promising company", "investor", "investors", "investing", "financing", "finance", "wall street", "hft trading",

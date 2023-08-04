@@ -513,7 +513,7 @@ def clear_cookies():
     except Exception as e:
         logging.info("Clear cookies error: %s",e)
 
-def log_in(env=".env", wait=4):
+def log_in(env=".env", wait=2):
     global driver
 
     cookies_added = 0

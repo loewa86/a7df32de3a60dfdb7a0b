@@ -521,6 +521,7 @@ def log_in(env=".env", wait=2):
     target_home = 'twitter.com/home'
     target_bis = 'redirect_after_login=%2Fhome'
     driver.get('https://www.twitter.com/')
+    sleep(random.uniform(2, 7))
     try:
         # Load cookies if they exist
         try:

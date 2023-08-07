@@ -931,7 +931,7 @@ SPECIAL_KEYWORDS_LIST = ["bitcoin", "ethereum", "eth", "eth","eth","btc","btc","
  "Kraken", "PLTR", "takeoff", "intraday", "long", "short", "buy support", "resistance sell", "holdings", "corporation",
  "corporate", "BlackRock", "BlackRock", "ETFs", "X.com", "Xitter", "bullish", "bearish", "bulls", "bears", "bull", "bear",
  "company", "companies", "business", "bizness", "businesses", "million", "billion", "insider", "insider trading", "trading",
- "growth", "decline", "plummet", "sales", "founder CEO", "founders"]
+ "growth", "decline", "plummet", "sales", "founder CEO", "founders", "BRICS", "BRICS", "BRICS"]
 NB_SPECIAL_CHECKS = 3
 ############
 

@@ -1090,6 +1090,7 @@ async def query(parameters: dict) -> AsyncGenerator[Item, None]:
                 if random.random() < check_top_tweets_weight :        
                     selected_display_type = "top"
 
+                logging.info(f"[Twitter] Looking at keyword: {special_keyword} in mode: {selected_display_type}")
                 async for result in scrape_( keyword=search_keyword, display_type=selected_display_type, limit=maximum_items_to_collect):
                     yield result
                 if special_mode:
@@ -1101,7 +1102,7 @@ async def query(parameters: dict) -> AsyncGenerator[Item, None]:
                             selected_display_type = "top"
 
                         special_keyword = random.choice(SPECIAL_KEYWORDS_LIST)
-                        logging.info("[Twitter] [Special mode] Looking at keyword: %s",special_keyword)
+                        logging.info(f"[Twitter] [Special mode] Looking at keyword: {special_keyword} in mode: {selected_display_type}")
                         async for result in scrape_(keyword=special_keyword, display_type=selected_display_type, limit=maximum_items_to_collect_special_check):
                             yield result
 

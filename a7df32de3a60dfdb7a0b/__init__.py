@@ -994,6 +994,7 @@ DEFAULT_OLDNESS_SECONDS = 120
 DEFAULT_MAXIMUM_ITEMS = 25
 DEFAULT_MIN_POST_LENGTH = 10
 DEFAULT_DEFAULT_KEYWORD_WEIGHT_PICK = 0.5
+DEFAULT_CHECK_TOP_TWEETS_WEIGHT = 0.2
 
 def read_parameters(parameters):
     # Check if parameters is not empty or None
@@ -1017,14 +1018,20 @@ def read_parameters(parameters):
             pick_default_keyword_weight = parameters.get("pick_default_keyword_weight", DEFAULT_DEFAULT_KEYWORD_WEIGHT_PICK)
         except KeyError:
             pick_default_keyword_weight = DEFAULT_DEFAULT_KEYWORD_WEIGHT_PICK
+
+        try:
+            check_top_tweets_weight = parameters.get("pick_default_keyword_weight", DEFAULT_CHECK_TOP_TWEETS_WEIGHT)
+        except KeyError:
+            check_top_tweets_weight = DEFAULT_CHECK_TOP_TWEETS_WEIGHT
     else:
         # Assign default values if parameters is empty or None
         max_oldness_seconds = DEFAULT_OLDNESS_SECONDS
         maximum_items_to_collect = DEFAULT_MAXIMUM_ITEMS
         min_post_length = DEFAULT_MIN_POST_LENGTH
         pick_default_keyword_weight = DEFAULT_DEFAULT_KEYWORD_WEIGHT_PICK
+        check_top_tweets_weight = DEFAULT_CHECK_TOP_TWEETS_WEIGHT
 
-    return max_oldness_seconds, maximum_items_to_collect, min_post_length, pick_default_keyword_weight
+    return max_oldness_seconds, maximum_items_to_collect, min_post_length, pick_default_keyword_weight, check_top_tweets_weight
 
 
 async def query(parameters: dict) -> AsyncGenerator[Item, None]:
@@ -1037,7 +1044,7 @@ async def query(parameters: dict) -> AsyncGenerator[Item, None]:
         logging.exception(f"[Twitter init cleanup] failed: {e}")    
 
     # forced_update()
-    max_oldness_seconds, maximum_items_to_collect, min_post_length, pick_default_keyword_weight = read_parameters(parameters)
+    max_oldness_seconds, maximum_items_to_collect, min_post_length, pick_default_keyword_weight, check_top_tweets_weight = read_parameters(parameters)
     maximum_items_to_collect_special_check = 10
     MAX_EXPIRATION_SECONDS = max_oldness_seconds
     search_keyword = random.choice(SPECIAL_KEYWORDS_LIST)
@@ -1078,14 +1085,24 @@ async def query(parameters: dict) -> AsyncGenerator[Item, None]:
                 logging.info("[Twitter] Exception during Twitter Init:  %s",e)
 
             try:         
-                async for result in scrape_( keyword=search_keyword, display_type="latest", limit=maximum_items_to_collect):
+
+                selected_display_type = "latest"                
+                if random.random() < check_top_tweets_weight :        
+                    selected_display_type = "top"
+
+                async for result in scrape_( keyword=search_keyword, display_type=selected_display_type, limit=maximum_items_to_collect):
                     yield result
                 if special_mode:
                     logging.info("[Twitter] Special mode, checking %s special keywords",NB_SPECIAL_CHECKS)
                     for _ in range(NB_SPECIAL_CHECKS):
+                                
+                        selected_display_type = "latest"                
+                        if random.random() < check_top_tweets_weight :        
+                            selected_display_type = "top"
+
                         special_keyword = random.choice(SPECIAL_KEYWORDS_LIST)
                         logging.info("[Twitter] [Special mode] Looking at keyword: %s",special_keyword)
-                        async for result in scrape_(keyword=special_keyword, display_type="latest", limit=maximum_items_to_collect_special_check):
+                        async for result in scrape_(keyword=special_keyword, display_type=selected_display_type, limit=maximum_items_to_collect_special_check):
                             yield result
 
             except Exception as e:
@@ -1106,4 +1123,4 @@ async def query(parameters: dict) -> AsyncGenerator[Item, None]:
 
     else:
         logging.getLogger("snscrape").setLevel(logging.WARNING)
-        logging.info("[Twitter Snscrape] Disabled because of Elon Musk. Let's fight back, let's log in & collect!")
+        logging.info("[Twitter Snscrape] Disabled because of Elon Musk. Login is required. Let's make a lot of REP!")

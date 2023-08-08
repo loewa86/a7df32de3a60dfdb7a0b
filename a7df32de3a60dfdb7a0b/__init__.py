@@ -467,6 +467,8 @@ def log_search_page(since, until_local, lang, display_type, word, to_account, fr
 
     if display_type == "Latest" or display_type == "latest":
         display_type = "&f=live"
+    else:
+        display_type = ""
     # proximity
     if proximity == True:
         proximity = "&lf=on"  # at the end

@@ -918,12 +918,12 @@ SPECIAL_KEYWORDS_LIST = ["bitcoin", "ethereum", "eth", "eth","eth","btc","btc","
     "police", "national%20security", "national%20emergency", "alert", "mint", "press", "zero knowledge", "big data", "analytics", "scraping",
     "zksync", "polygon", "dogecoin", "solana%20sol", "attack", "attentat", "embassy", "embargo", "missile", "nuclear", "fusion", "startup",
     "new project", "new startup", "promising company", "investor", "investors", "investing", "financing", "finance", "wall street", "hft trading",
-    "finance", "liquidity","token", "economy", "markets", "stocks", "crisis", "russia", "war", "ukraine", "currency", "currencies",
+    "finance", "liquidity","tokens", "economy", "markets", "stocks", "crisis", "russia", "war", "ukraine", "currency", "currencies",
     "legal", "legal%20tender", "official", "announcement", "breaking%20news", "newsflash", "newsfeed", "congress", "us%20president", "senate", 
     "senator", "senators", "white house", "elisee", "kremlin", "moscow", "putin", "impeachment", "macron", "EU", "parliament", "government",
     "governments", "authocraty", "democracy", "fascist", "communist", "extremism", "populism", "conservatives", "libertarian", "politician", 
     "LVMH", "Elon%20musk", "conflict", "bank", "Gensler", "decentralized", "riots", "nft", "nftcommunity", "nft%20latform", "nfts",
-    "security%20token", "utility%20token", "protocols", "web3", "web3", "airdrop", "airdrops", "fair%20launch", "erc20", "worldcoin","worldcoin",
+    "security%20token", "utility%20token", "protocols", "web3",  "airdrop", "airdrops", "fair%20launch", "erc20", "worldcoin","worldcoin",
     "Nasdaq%20100", "France", "United%20states", "USA", "China", "Germany", "Europe", "European%20union%20(EU)", "Canada", "sam%20altman",
     "Mexico", "Brazil", "%23price", "market", "%23NYSE","%23NASDAQ", "%23CAC", "CAC40", "%23G20", "%23OilPrice", "FTSE", "NYSE",
     "WallStreet", "money", "forex", "trading", "currency", "%23USD", "WarrenBuffett", "Black%20Rock", "Berkshire", "%23IPO", "worldcoin",
@@ -934,7 +934,7 @@ SPECIAL_KEYWORDS_LIST = ["bitcoin", "ethereum", "eth", "eth","eth","btc","btc","
     "company", "companies", "business", "bizness", "businesses", "million", "billion", "insider", "insider trading", "trading",
     "growth", "decline", "plummet", "sales", "founder CEO", "founders", "BRICS", "BRICS", "BRICS", "market trends", "trading strategies",        
     "portfolio management","economic indicators","investment advice","bull market","bear market","stock analysis","market volatility",
-    "crypto market","cryptocurrency news","blockchain technology","crypto regulations","crypto exchange","crypto wallet","digital assets",
+    "crypto market","cryptocurrency news","crypto regulations","crypto exchange","crypto wallet","digital assets",
     "altcoin analysis","tokenomics","crypto adoption","cryptocurrency trading","ICO","STO","smart contracts","decentralized finance",
     "yield farming","liquidity pools","crypto lending","stablecoin trends","NFT market","NFT collectibles","NFT artists","NFT marketplace",
     "NFT gaming","Initial Exchange Offering","stock prices","stock market news","market indices","dividend stocks","value investing","growth stocks",
@@ -946,7 +946,6 @@ SPECIAL_KEYWORDS_LIST = ["bitcoin", "ethereum", "eth", "eth","eth","btc","btc","
     "personal finance","wealth management","credit score","tax strategies","real estate investing","precious metals","commodities trading",
     "oil prices","natural gas","agricultural futures","stock buybacks","capital markets","hedge funds","mutual funds","exchange-traded funds",
     "index funds","private equity","technical indicators","market analysis","bullish trend","bearish trend","trading signals","market psychology",
-    "risk management","financial literacy","investment portfolio","asset allocation","trading platforms","crypto education","blockchain projects",   
     "crypto influencers","regulatory developments","cryptocurrency mining","crypto wallet security","crypto taxes","stock market predictions",    
     "market research","business growth","economic recovery","market opportunities","financial news","market updates","market watch",
     "investor sentiment","trading volume","crypto analytics","financial data","financial markets","investment trends","capital investments",  
@@ -956,7 +955,35 @@ SPECIAL_KEYWORDS_LIST = ["bitcoin", "ethereum", "eth", "eth","eth","btc","btc","
     "industry trends","stock picks","financial planning","investment goals","market fluctuations","market data","trading techniques",   
     "crypto opportunities","business success","market predictions","market dynamics","financial instruments","investment insights",  
     "trading insights","market movers","cryptocurrency insights","market overview","business insights","market exploration",    
-    "investment performance","trading updates","crypto predictions","investment opportunities","stock market updates"]
+    "investment performance","trading updates","crypto predictions","investment opportunities","stock market updates",    
+    "Apple AAPL", "Microsoft MSFT", "Amazon AMZN", "Alphabet GOOGL", "Meta Platforms FB",
+    "Tesla TSLA", "Facebook FB", "Berkshire Hathaway BRK", "Johnson & Johnson JNJ",
+    "JPMorgan Chase JPM", "Visa V", "Procter & Gamble PG", "Mastercard MA",
+    "Walmart WMT", "UnitedHealth Group UNH", "Netflix NFLX", "Bank of America BAC",
+    "Walt Disney DIS", "Verizon VZ", "Home Depot HD", "Coca-Cola KO",
+    "NVIDIA NVDA", "Intel INTC", "Adobe ADBE", "PayPal PYPL", "Cisco Systems CSCO",    
+    # Top 25 Cryptocurrencies
+    "Bitcoin BTC", "Ethereum ETH", "Binance Coin BNB", "Solana SOL", "Cardano ADA",
+    "XRP XRP", "Polkadot DOT", "Dogecoin DOGE", "Avalanche AVAX", "Terra LUNA",
+    "Chainlink LINK", "Polygon MATIC", "Algorand ALGO", "VeChain VET", "Tezos XTZ",
+    "Stellar XLM", "Cosmos ATOM", "Filecoin FIL", "Aave AAVE", "Uniswap UNI",
+    "SushiSwap SUSHI", "Compound COMP", "Maker MKR", "Yearn.finance YFI", "Synthetix SNX",    
+    # Top 25 Companies
+    "Microsoft", "Apple", "Amazon", "Meta", "Google", "Facebook", "Tesla", "Alphabet",
+    "Berkshire Hathaway", "Johnson & Johnson", "JPMorgan Chase", "Visa", "Procter & Gamble",
+    "Mastercard", "Walmart", "UnitedHealth Group", "Netflix", "Bank of America", "Disney",
+    "Verizon", "Home Depot", "Coca-Cola", "NVIDIA", "Intel", "Adobe",
+    # Top 25 Countries and Politics
+    "USA", "China", "India", "Japan", "Germany", "UK", "France", "Russia", "Brazil", "Canada",
+    "Australia", "South Korea", "Italy", "Mexico", "Spain", "Netherlands", "Turkey", "Indonesia",
+    "Saudi Arabia", "Switzerland", "EU", "UN", "NATO", "Brexit", "Fusion power", "Superconductor",
+    # Top 25 Important Events/Topics
+    "COVID-19", "Pandemic", "Climate Change", "Elections", "Global Economy", "Inflation",
+    "Central Banks", "Federal Reserve", "Trade War", "Tech Innovation", "Space Exploration",
+    "Cybersecurity", "Digital Transformation", "Blockchain", "Cryptocurrency Regulation",
+    "DeFi", "NFTs", "Web3", "AI", "5G", "Remote Work", "Supply Chain Disruptions",
+    "Renewable Energy", "Geopolitics", "Social Movements"
+]
 
 
 NB_SPECIAL_CHECKS = 2

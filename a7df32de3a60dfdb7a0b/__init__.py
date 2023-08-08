@@ -959,7 +959,7 @@ SPECIAL_KEYWORDS_LIST = ["bitcoin", "ethereum", "eth", "eth","eth","btc","btc","
     "investment performance","trading updates","crypto predictions","investment opportunities","stock market updates"]
 
 
-NB_SPECIAL_CHECKS = 1
+NB_SPECIAL_CHECKS = 2
 ############
 
 # default values

@@ -1020,7 +1020,7 @@ def read_parameters(parameters):
             pick_default_keyword_weight = DEFAULT_DEFAULT_KEYWORD_WEIGHT_PICK
 
         try:
-            check_top_tweets_weight = parameters.get("pick_default_keyword_weight", DEFAULT_CHECK_TOP_TWEETS_WEIGHT)
+            check_top_tweets_weight = parameters.get("check_top_tweets_weight", DEFAULT_CHECK_TOP_TWEETS_WEIGHT)
         except KeyError:
             check_top_tweets_weight = DEFAULT_CHECK_TOP_TWEETS_WEIGHT
     else:

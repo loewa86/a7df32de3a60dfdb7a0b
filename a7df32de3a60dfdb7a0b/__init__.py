@@ -911,7 +911,7 @@ def convert_spaces_to_percent20(input_string):
 special_mode = True
 #TOP 222
 
-SPECIAL_KEYWORDS_LIST = ["bitcoin", "ethereum", "eth", "eth","eth","btc","btc","btc", "usdt", "cryptocurrency", "solana",
+SPECIAL_KEYWORDS_LIST = ["bitcoin", "ethereum", "eth", "eth","eth","btc","btc","btc", "usdt", "cryptocurrency", "solana", "kaspa", "kas",
     "doge", "cardano", "monero", "polkadot", "ripple", "xrp", "stablecoin", "defi", "cbdc", "nasdaq", "mark%20zuckerberg", "bezos",
     "amazon", "helion", "sp500", "s&p500", "BNB", "ETF", "Spot%20ETF", "Bitcoin%20ETF", "Crypto","Crypto", "Crypto", "%23altcoin", "DeFi", "GameFi",
     "NFT", "NFTs", "Cryptocurrencies", "Cryptos", "twitter", "digital", "%23airdrop", "worldcoin", "politicians", "CSPR", "Polygon matic", "paypal",

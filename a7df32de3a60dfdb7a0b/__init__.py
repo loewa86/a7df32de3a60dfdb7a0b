@@ -868,6 +868,9 @@ def init_driver(
         "--disable-blink-features"
     )  # Disable features that might betray automation
     options.add_argument(
+        "--disable-gpu"
+    )  # GPU rendering
+    options.add_argument(
         "--disable-blink-features=AutomationControlled"
     )  # Disables a Chrome flag that shows an 'automation' toolbar
     options.add_experimental_option(
@@ -882,6 +885,10 @@ def init_driver(
     selected_user_agent = random.choice(user_agents)
     options.add_argument(f"user-agent={selected_user_agent}")
     logging.info("\tselected_user_agent :  %s", selected_user_agent)
+    if headless is True:
+        headless_mode = "--headless=new"
+        options.add_argument(headless_mode)
+        logging.info(f"\theadless mode used : {headless_mode}")
 
     selected_proxy_account = select_proxy_and_account_if_any()
     if selected_proxy_account is not None:
@@ -909,6 +916,7 @@ def init_driver(
                     PROXY_PASS=PROXY_PASSWORD,
                 ),
             )
+        logging.info(f"[Twitter] [MULTI ACCOUNTS] adding PROXY extension: {pluginfile}")
         options.add_extension(pluginfile)
 
         logging.info(f"[Twitter] [MULTI ACCOUNTS] Selected Proxy: {_PROXY}")
@@ -916,10 +924,6 @@ def init_driver(
             f"[Twitter] [MULTI ACCOUNTS] Selected Account: {selected_proxy_account['email'], {selected_proxy_account['username']}, {print_first_and_last(selected_proxy_account['password'])}}"
         )
 
-    if headless is True:
-        options.headless = True
-    else:
-        options.headless = False
     options.add_argument("log-level=3")
     if show_images == False and firefox == False:
         prefs = {"profile.managed_default_content_settings.images": 2}
@@ -927,7 +931,6 @@ def init_driver(
     if option is not None:
         options.add_argument(option)
     options.add_experimental_option("extensionLoadTimeout", 100000)
-
     try:
         ### DEBUGGING/DEVELOPMENT
         # driver = webdriver.Chrome(

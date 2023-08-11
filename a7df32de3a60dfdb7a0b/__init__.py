@@ -627,7 +627,6 @@ def get_chrome_path():
         return None
 
 
-from webdriver_manager.chrome import ChromeDriverManager
 
 def verify_account_structure(account):
     required_keys = [

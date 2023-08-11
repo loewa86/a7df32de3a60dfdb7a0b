@@ -8,15 +8,17 @@ from datetime import timedelta, date, timezone
 from time import sleep
 import pytz
 import pandas as pd
-import snscrape.modules
 import dotenv
+import json
 import logging
+import time
 from pathlib import Path
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -24,6 +26,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common import exceptions
 from typing import AsyncGenerator
 import pickle
+import zipfile
 from exorde_data import (
     Item,
     Content,
@@ -35,47 +38,302 @@ from exorde_data import (
     ExternalId,
     ExternalParentId,
 )
-# import chromedriver_autoinstaller
 import subprocess
 import shutil
 import signal
+
 # import geckodriver_autoinstaller
 
 global driver
-driver = None
+global MULTI_ACCOUNT_MODE
 global status_rate_limited
-status_rate_limited = False
-
 global MAX_EXPIRATION_SECONDS
+global RATE_LIMITED
+global _EMAIL, _USERNAME, _PASSWORD, _COOKIE_FP, _PROXY
+global ITEMS_PRODUCED_SESSION
+RATE_LIMITED = False
+MULTI_ACCOUNT_MODE = False
+PROXY_ACCOUNT_MAP_FP = "proxy_account_list.json"
 MAX_EXPIRATION_SECONDS = 180
+DEFAULT_ROTATION_DURATION = 3600
+special_mode = True
+NB_SPECIAL_CHECKS = 3
+status_rate_limited = False
+# Global variable declaration
+_PROXY = None
+_EMAIL = None
+_USERNAME = None
+_PASSWORD = None
+_COOKIE_FP = None
+driver = None
 
+##### SPECIAL MODE
+# TOP 222
+SPECIAL_KEYWORDS_LIST = [
+    "bitcoin",
+    "ethereum",
+    "eth",
+    "eth",
+    "eth",
+    "btc",
+    "btc",
+    "btc",
+    "usdt",
+    "cryptocurrency",
+    "solana",
+    "doge",
+    "cardano",
+    "monero",
+    "polkadot",
+    "ripple",
+    "xrp",
+    "stablecoin",
+    "defi",
+    "cbdc",
+    "nasdaq",
+    "mark%20zuckerberg",
+    "bezos",
+    "amazon",
+    "helion",
+    "sp500",
+    "s&p500",
+    "BNB",
+    "ETF",
+    "Spot%20ETF",
+    "Bitcoin%20ETF",
+    "Crypto",
+    "Crypto",
+    "Crypto",
+    "%23altcoin",
+    "DeFi",
+    "GameFi",
+    "NFT",
+    "NFTs",
+    "Cryptocurrencies",
+    "Cryptos",
+    "twitter",
+    "digital",
+    "%23airdrop",
+    "worldcoin",
+    "sam20altman",
+    "politicians",
+    "police",
+    "national%20security",
+    "national%20emergency",
+    "alert",
+    "mint",
+    "press",
+    "zero knowledge",
+    "big data",
+    "analytics",
+    "scraping",
+    "zksync",
+    "polygon",
+    "dogecoin",
+    "solana%20sol",
+    "attack",
+    "attentat",
+    "embassy",
+    "embargo",
+    "missile",
+    "nuclear",
+    "fusion",
+    "startup",
+    "new project",
+    "new startup",
+    "promising company",
+    "investor",
+    "investors",
+    "investing",
+    "financing",
+    "finance",
+    "wall street",
+    "hft trading",
+    "finance",
+    "liquidity",
+    "token",
+    "economy",
+    "markets",
+    "stocks",
+    "crisis",
+    "russia",
+    "war",
+    "ukraine",
+    "currency",
+    "currencies",
+    "legal",
+    "legal%20tender",
+    "official",
+    "announcement",
+    "breaking%20news",
+    "newsflash",
+    "newsfeed",
+    "congress",
+    "us%20president",
+    "senate",
+    "senator",
+    "senators",
+    "white house",
+    "elisee",
+    "kremlin",
+    "moscow",
+    "putin",
+    "impeachment",
+    "macron",
+    "EU",
+    "parliament",
+    "government",
+    "governments",
+    "authocraty",
+    "democracy",
+    "fascist",
+    "communist",
+    "extremism",
+    "populism",
+    "conservatives",
+    "libertarian",
+    "politician",
+    "LVMH",
+    "Elon%20musk",
+    "conflict",
+    "bank",
+    "Gensler",
+    "decentralized",
+    "riots",
+    "nft",
+    "nftcommunity",
+    "nft%20latform",
+    "nfts",
+    "security%20token",
+    "utility%20token",
+    "protocols",
+    "web3",
+    "web3",
+    "airdrop",
+    "airdrops",
+    "fair%20launch",
+    "erc20",
+    "Nasdaq%20100",
+    "France",
+    "United%20states",
+    "USA",
+    "China",
+    "Germany",
+    "Europe",
+    "European%20union%20(EU)",
+    "Canada",
+    "Mexico",
+    "Brazil",
+    "%23price",
+    "market",
+    "%23NYSE",
+    "%23NASDAQ",
+    "%23CAC",
+    "CAC40",
+    "%23G20",
+    "%23OilPrice",
+    "FTSE",
+    "NYSE",
+    "WallStreet",
+    "money",
+    "forex",
+    "trading",
+    "currency",
+    "%23USD",
+    "WarrenBuffett",
+    "Black%20Rock",
+    "Berkshire",
+    "%23IPO",
+    "Apple",
+    "Tesla",
+    "Alphabet%20(GOOG)",
+    "FB%20stock",
+    "debt",
+    "%23bonds",
+    "XAUUSD",
+    "%23SP500",
+    "DowJones",
+    "satoshi",
+    "AUDNZD",
+    "USDEUR",
+    "EURUSD",
+    "forex",
+    "asset%20management",
+    "market maker",
+    "NFLX",
+    "COIN",
+    "Coinbase",
+    "Binance",
+    "Kraken",
+    "PLTR",
+    "takeoff",
+    "intraday",
+    "long",
+    "short",
+    "buy support",
+    "resistance sell",
+    "holdings",
+    "corporation",
+    "corporate",
+    "BlackRock",
+    "BlackRock",
+    "ETFs",
+    "X.com",
+    "Xitter",
+    "bullish",
+    "bearish",
+    "bulls",
+    "bears",
+    "bull",
+    "bear",
+    "company",
+    "companies",
+    "business",
+    "bizness",
+    "businesses",
+    "million",
+    "billion",
+    "insider",
+    "insider trading",
+    "trading",
+    "growth",
+    "decline",
+    "plummet",
+    "sales",
+    "founder CEO",
+    "founders",
+]
+############
+
+# default values
+DEFAULT_OLDNESS_SECONDS = 120
+DEFAULT_MAXIMUM_ITEMS = 25
+DEFAULT_MIN_POST_LENGTH = 10
+DEFAULT_DEFAULT_KEYWORD_WEIGHT_PICK = 0.5
+
+
+user_agents = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36 Edg/115.0.1901.188",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/116.0"
+]
 #############################################################################
 #############################################################################
 #############################################################################
 #############################################################################
 #############################################################################
 
-def is_within_timeframe_seconds_snscrape(dt, timeframe_sec):
-    # Get the current datetime in UTC
-    current_dt = datett.now(timezone.utc)
-
-    # Calculate the time difference between the two datetimes
-    time_diff = current_dt - dt
-
-    # Check if the time difference is within 5 minutes
-    if abs(time_diff) <= timedelta(seconds=timeframe_sec):
-        return True
-    else:
-        return False
 
 def delete_org_files_in_tmp():
-    tmp_folder = '/tmp/'
-    target_prefix = '.org'
+    tmp_folder = "/tmp/"
+    target_prefix = ".org"
 
     try:
         # Check if the /tmp/ folder exists
         if not os.path.exists(tmp_folder):
-            logging.info(f"[DISK CLEANUP] Error: The directory '{tmp_folder}' does not exist.")
+            logging.info(
+                f"[DISK CLEANUP] Error: The directory '{tmp_folder}' does not exist."
+            )
             return
 
         # Iterate through the files in /tmp/ folder
@@ -98,7 +356,8 @@ def delete_org_files_in_tmp():
 
     except Exception as e:
         logging.exception(f"An error occurred: {e}")
-        
+
+
 def cleanhtml(raw_html):
     """
     Clean HTML tags and entities from raw HTML text.
@@ -120,125 +379,59 @@ def convert_datetime(datetime_str):
     converted_str = dt.strftime("%Y-%m-%dT%H:%M:%S.00Z")
     return converted_str
 
-
 ########################################################################
 
+def check_proxy_account_list():
+    logging.basicConfig(level=logging.INFO)
 
-async def get_sns_tweets(
-    search_keyword, select_top_tweets, nb_tweets_wanted
-) -> AsyncGenerator[Item, None]:
-    """
-    Get SNS tweets (Twitter) based on the given search keyword.
-    Args:
-        search_keyword (str): Keyword to search for tweets.
-        nb_tweets_wanted (int): Number of tweets wanted.
-    Returns:
-        list: List of found tweets as dictionaries.
-    """
-    global MAX_EXPIRATION_SECONDS
-    today = date.today()
-    c = 0
-    # found_tweets = []
-    ## top == False
-    if select_top_tweets == False:
-        mode = snscrape.modules.twitter.TwitterSearchScraperMode.LIVE
-    else:
-        mode = snscrape.modules.twitter.TwitterSearchScraperMode.TOP
+    # Check if the file exists in the current directory
+    if not os.path.exists("proxy_account_list.json"):
+        logging.info("proxy_account_list.json not found in the current directory.")
+        return False
 
+    # Read the contents of the JSON file
     try:
-        logging.info("[Twitter Snscrape] Attempt on keywords = %s",search_keyword)
-        attempted_tweet_collect = (
-            snscrape.modules.twitter.TwitterSearchScraper(
-                "{} since:{}".format(search_keyword, today), mode=mode
-            ).get_items()
-        )
-    except:
-        raise StopIteration
+        with open("proxy_account_list.json", "r") as file:
+            data = json.load(file)
+    except json.JSONDecodeError:
+        logging.info("proxy_account_list.json is not a valid JSON file.")
+        return False
 
-    for _post in attempted_tweet_collect:
-        post = _post.__dict__
+    # Check if the loaded data has the expected structure
+    if "accounts" not in data or not isinstance(data["accounts"], list):
+        logging.info("proxy_account_list.json does not have the expected structure.")
+        return False
 
-        tr_post = dict()
-        c += 1
-        if c > nb_tweets_wanted:
-            break
+    num_accounts = len(data["accounts"])
+    logging.info(
+        f"[Twitter] [MULTI ACCOUNTS INIT] 'proxy_account_list.json' file OK - {num_accounts} accounts founds."
+    )
+    return True
 
-        tr_post["external_id"] = str(post["id"])
-        tr_post["external_parent_id"] = str(post["conversationId"])
-
-        tr_post["mediaType"] = "Social_Networks"
-        tr_post["domainName"] = "twitter.com"
-        tr_post["url"] = "https://twitter.com/redirect/status/{}".format(
-            post["id"]
-        )
-
-        # Create a new sha1 hash
-        sha1 = hashlib.sha1()
-        # Update the hash with the author string encoded to bytest
-        try:
-            author = post["user"].displayname
-        except:
-            author = "unknown"
-        sha1.update(author.encode())    
-        # Get the hexadecimal representation of the hash
-        author_sha1_hex = sha1.hexdigest()
-        tr_post["author"] = author_sha1_hex
-        tr_post["creationDateTime"] = post["date"]
-        if tr_post["creationDateTime"] is not None:
-            newness =  is_within_timeframe_seconds_snscrape(
-                tr_post["creationDateTime"], MAX_EXPIRATION_SECONDS
-            )
-            if not newness:
-                break  # finish the generation if we scrolled further than 5min old tweets
-
-        tr_post["lang"] = post["lang"]
-        tr_post["title"] = ""
-        tr_post["content"] = cleanhtml(
-            post["renderedContent"].replace("\n", "").replace("'", "''")
-        )
-        if tr_post["content"] in ("", "[removed]") and tr_post["title"] != "":
-            tr_post["content"] = tr_post["title"]
-        if (
-            len(tr_post["content"]) >= 20
-        ):  # yield only tweets with >=25 real text characters        
-            new_tweet_item = Item(
-                content=Content(tr_post["content"]),
-                author=Author(tr_post["author"]),
-                created_at=CreatedAt(
-                    convert_datetime(tr_post["creationDateTime"])
-                ),
-                title=Title(tr_post["title"]),
-                domain=Domain("twitter.com"),
-                url=Url(tr_post["url"]),
-                external_id=ExternalId(tr_post["external_id"]),
-                external_parent_id=ExternalParentId(
-                    tr_post["external_parent_id"]
-                )
-            )
-            logging.info("[Twitter Snscrape] Found tweet: %s",new_tweet_item)
-            yield new_tweet_item
 
 def check_env():
+    if check_proxy_account_list():
+        return True
     # Check if the .env file exists
-    if not os.path.exists('.env'):
-        logging.info(".env file does not exist.")
+    if not os.path.exists(".env"):
+        logging.info("[Twitter] Solo account mode - .env file does not exist.")
         return False
 
     # Read the .env file
-    with open('.env', 'r') as f:
+    with open(".env", "r") as f:
         content = f.read()
 
     # Split the content into lines
-    lines = content.split('\n')
+    lines = content.split("\n")
 
     # Define a dictionary to hold the keys and values
-    keys = {'SCWEET_EMAIL': None, 'SCWEET_PASSWORD': None, 'SCWEET_USERNAME': None}
+    keys = {"SCWEET_EMAIL": None, "SCWEET_PASSWORD": None, "SCWEET_USERNAME": None}
 
     # Parse each line
     for line in lines:
-        if '=' in line:
-            key, value = line.split('=', 1)
-            if key in keys and value != '':
+        if "=" in line:
+            key, value = line.split("=", 1)
+            if key in keys and value != "":
                 keys[key] = value
 
     # Check if all keys have non-null values
@@ -249,15 +442,12 @@ def check_env():
     # If all checks pass, return True
     return True
 
-#############################################################################
-#############################################################################
-#############################################################################
 
+#############################################################################
+#############################################################################
+#############################################################################
 
 current_dir = Path(__file__).parent.absolute()
-# env_file = os.getenv("SCWEET_ENV_FILE", current_dir.parent.joinpath(".env"))
-# dotenv.load_dotenv(env_file, verbose=True)
-
 
 def load_env_variable(key, default_value=None, none_allowed=False):
     v = os.getenv(key, default=default_value)
@@ -265,89 +455,114 @@ def load_env_variable(key, default_value=None, none_allowed=False):
         raise RuntimeError(f"{key} returned {v} but this is not allowed!")
     return v
 
+
 def get_email(env):
+    global _EMAIL
     dotenv.load_dotenv(env, verbose=True)
-    return load_env_variable("SCWEET_EMAIL", none_allowed=True)
+    default_var = load_env_variable("SCWEET_EMAIL", none_allowed=True)
+    if _EMAIL is not None and len(_EMAIL) > 0:
+        default_var = _EMAIL
+    return default_var
+
 
 def get_password(env):
+    global _PASSWORD
     dotenv.load_dotenv(env, verbose=True)
-    return load_env_variable("SCWEET_PASSWORD", none_allowed=True)
+    default_var = load_env_variable("SCWEET_PASSWORD", none_allowed=True)
+    if _PASSWORD is not None and len(_PASSWORD) > 0:
+        default_var = _PASSWORD
+    return default_var
+
 
 def get_username(env):
+    global _USERNAME
     dotenv.load_dotenv(env, verbose=True)
-    return load_env_variable("SCWEET_USERNAME", none_allowed=True)
+    default_var = load_env_variable("SCWEET_USERNAME", none_allowed=True)
+    if _USERNAME is not None and len(_USERNAME) > 0:
+        default_var = _USERNAME
+    return default_var
+
 
 def get_proxy(env):
+    global _PROXY
     dotenv.load_dotenv(env, verbose=True)
-    return load_env_variable("HTTP_PROXY", none_allowed=True)
+    default_var = load_env_variable("HTTP_PROXY", none_allowed=True)
+    if _PROXY is not None and len(_PROXY) > 0:
+        default_var = _PROXY
+    return default_var
 
-
-# import undetected_chromedriver as uc 
-# chromedriver_autoinstaller.install() 
-
-# current_dir = pathlib.Path(__file__).parent.absolute()
 
 def get_data(card):
     """Extract data from tweet card"""
     image_links = []
 
     try:
-        username = card.find_element(by=By.XPATH, value='.//span').text
+        username = card.find_element(by=By.XPATH, value=".//span").text
     except:
         return
 
     try:
-        handle = card.find_element(by=By.XPATH, value='.//span[contains(text(), "@")]').text
+        handle = card.find_element(
+            by=By.XPATH, value='.//span[contains(text(), "@")]'
+        ).text
     except:
         return
 
     try:
-        postdate = card.find_element(by=By.XPATH, value='.//time').get_attribute('datetime')
+        postdate = card.find_element(by=By.XPATH, value=".//time").get_attribute(
+            "datetime"
+        )
     except:
         return
 
     try:
-        # text = card.find_element(by=By.XPATH, value='.//div[2]/div[2]/div[1]').text        
-        text = card.find_element(by=By.XPATH, value='.//div[@data-testid="tweetText"]').text
+        text = card.find_element(
+            by=By.XPATH, value='.//div[@data-testid="tweetText"]'
+        ).text
     except:
         text = ""
 
     try:
-        embedded = card.find_element(by=By.XPATH, value='.//div[2]/div[2]/div[2]').text
+        embedded = card.find_element(by=By.XPATH, value=".//div[2]/div[2]/div[2]").text
     except:
         embedded = ""
 
-    # text = comment + embedded
-
     try:
-        reply_cnt = card.find_element(by=By.XPATH, value='.//div[@data-testid="reply"]').text
+        reply_cnt = card.find_element(
+            by=By.XPATH, value='.//div[@data-testid="reply"]'
+        ).text
     except:
         reply_cnt = 0
 
     try:
-        retweet_cnt = card.find_element(by=By.XPATH, value='.//div[@data-testid="retweet"]').text
+        retweet_cnt = card.find_element(
+            by=By.XPATH, value='.//div[@data-testid="retweet"]'
+        ).text
     except:
         retweet_cnt = 0
 
     try:
-        like_cnt = card.find_element(by=By.XPATH, value='.//div[@data-testid="like"]').text
+        like_cnt = card.find_element(
+            by=By.XPATH, value='.//div[@data-testid="like"]'
+        ).text
     except:
         like_cnt = 0
 
     try:
-        elements = card.find_elements(by=By.XPATH, value='.//div[2]/div[2]//img[contains(@src, "https://pbs.twimg.com/")]')
+        elements = card.find_elements(
+            by=By.XPATH,
+            value='.//div[2]/div[2]//img[contains(@src, "https://pbs.twimg.com/")]',
+        )
         for element in elements:
-            image_links.append(element.get_attribute('src'))
+            image_links.append(element.get_attribute("src"))
     except:
         image_links = []
 
-    # if save_images == True:
-    #	for image_url in image_links:
-    #		save_image(image_url, image_url, save_dir)
-    # handle promoted tweets
-
     try:
-        promoted = card.find_element(by=By.XPATH, value='.//div[2]/div[2]/[last()]//span').text == "Promoted"
+        promoted = (
+            card.find_element(by=By.XPATH, value=".//div[2]/div[2]/[last()]//span").text
+            == "Promoted"
+        )
     except:
         promoted = False
     if promoted:
@@ -355,146 +570,462 @@ def get_data(card):
 
     # get a string of all emojis contained in the tweet
     try:
-        emoji_tags = card.find_elements(by=By.XPATH, value='.//img[contains(@src, "emoji")]')
+        emoji_tags = card.find_elements(
+            by=By.XPATH, value='.//img[contains(@src, "emoji")]'
+        )
     except:
         return
     emoji_list = []
     for tag in emoji_tags:
         try:
-            filename = tag.get_attribute('src')
-            emoji = chr(int(re.search(r'svg\/([a-z0-9]+)\.svg', filename).group(1), base=16))
+            filename = tag.get_attribute("src")
+            emoji = chr(
+                int(re.search(r"svg\/([a-z0-9]+)\.svg", filename).group(1), base=16)
+            )
         except AttributeError:
             continue
         if emoji:
             emoji_list.append(emoji)
-    emojis = ' '.join(emoji_list)
+    emojis = " ".join(emoji_list)
 
     # tweet url
     try:
-        element = card.find_element(by=By.XPATH, value='.//a[contains(@href, "/status/")]')
-        tweet_url = element.get_attribute('href')
+        element = card.find_element(
+            by=By.XPATH, value='.//a[contains(@href, "/status/")]'
+        )
+        tweet_url = element.get_attribute("href")
     except:
         return
 
     tweet = (
-        username, handle, postdate, text, embedded, emojis, reply_cnt, retweet_cnt, like_cnt, image_links, tweet_url)
+        username,
+        handle,
+        postdate,
+        text,
+        embedded,
+        emojis,
+        reply_cnt,
+        retweet_cnt,
+        like_cnt,
+        image_links,
+        tweet_url,
+    )
     return tweet
 
-user_agents = [
-    # "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36"
-    # "Mozilla/5.0 (Windows NT 5.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36",
-    # "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36",
-]
+
 
 def get_chrome_path():
-    if os.path.isfile('/usr/bin/chromium-browser'):
-        return '/usr/bin/chromium-browser'
-    elif os.path.isfile('/usr/bin/chromium'):
-        return '/usr/bin/chromium'
-    elif os.path.isfile('/usr/bin/chrome'):
-        return '/usr/bin/chrome'
-    elif os.path.isfile('/usr/bin/google-chrome'):
-        return '/usr/bin/google-chrome'
+    if os.path.isfile("/usr/bin/chromium-browser"):
+        return "/usr/bin/chromium-browser"
+    elif os.path.isfile("/usr/bin/chromium"):
+        return "/usr/bin/chromium"
+    elif os.path.isfile("/usr/bin/chrome"):
+        return "/usr/bin/chrome"
+    elif os.path.isfile("/usr/bin/google-chrome"):
+        return "/usr/bin/google-chrome"
     else:
         return None
-        
-def init_driver(headless=True, proxy=None, show_images=False, option=None, firefox=False, env=".env"):
-    """ initiate a chromedriver or firefoxdriver instance
-        --option : other option to add (str)
+
+
+from webdriver_manager.chrome import ChromeDriverManager
+
+def verify_account_structure(account):
+    required_keys = [
+        "proxy",
+        "proxy_username",
+        "proxy_password",
+        "proxy_port",
+        "email",
+        "password",
+        "username",
+        "last_used",
+        "duration",
+        "cookies_file",
+    ]
+    if not all(key in account for key in required_keys):
+        logging.error("Account is missing required keys: %s", account)
+        return False
+    return True
+
+
+def select_proxy_and_account_if_any():
+
+    result_account = None
+    try:
+        # Attempt to open and read the "proxy_account_list.json" file
+        with open(PROXY_ACCOUNT_MAP_FP, "r") as file:
+            data = json.load(file)
+    except FileNotFoundError:
+        logging.error("[MULTI ACCOUNTS] File 'proxy_account_list.json' not found. - USING DEFAULT SOLO ACCOUNT MODE")
+        return None
+    except json.JSONDecodeError:
+        logging.error("[MULTI ACCOUNTS] Error decoding 'proxy_account_list.json'.")
+        return None
+
+    logging.info("\n******************* ________ SELECTION - MULTI ACCOUNT MODE ________ ********************")
+
+    # Check if the "data" is a dictionary and it contains the key "accounts"
+    if not isinstance(data, dict) or "accounts" not in data:
+        logging.error("[MULTI ACCOUNTS] 'proxy_account_list.json' does not have the expected structure.")
+        return None
+
+    # Extract the "accounts" list from the JSON data
+    accounts = data["accounts"]
+
+    # If the "accounts" list is empty, return None
+    if not accounts:
+        logging.warning("[MULTI ACCOUNTS] 'proxy_account_list.json' does not contain any accounts.")
+        return None
+
+    # Verify account structure and attributes
+    for account in accounts:
+        if not verify_account_structure(account):
+            return None
+
+    # Sort the accounts based on the "last_used" timestamp in descending order
+    sorted_accounts = sorted(accounts, key=lambda x: x["duration"], reverse=True)
+    oldest_used_accounts = sorted(accounts, key=lambda x: x["last_used"], reverse=True)
+
+    # Get the parameters from the JSON data
+    parameters = data.get("parameters", {})
+    rotate_account_after_duration = parameters.get(
+        "rotate_account_after_duration", 3600
+    )
+
+    # Iterate through the sorted accounts
+    for account in sorted_accounts:
+        if account["duration"] <= rotate_account_after_duration:
+            logging.info(
+                "[Twitter] [MULTI ACCOUNTS] _______ Rotation system: selected account '%s'. _______",
+                account["username"],
+            )
+            account["last_used"] = int(time.time())
+            result_account = account
+            break
+        elif account["duration"] <= rotate_account_after_duration:
+            logging.info(
+                "[Twitter] [MULTI ACCOUNTS] Using account '%s' as duration is less than rotate_account_after_duration.",
+                account["username"],
+            )
+            account["last_used"] = int(time.time())
+            result_account = account
+            break
+
+    if result_account is None:
+        # If no suitable account is found, select the oldest account and reset its "last_used" timestamp
+        oldest_account = oldest_used_accounts[-1]
+        logging.info(
+            "[Twitter] [MULTI ACCOUNTS] No suitable account found with duration <= %d. Selecting the oldest account: '%s' and reseting its duration.",
+            rotate_account_after_duration,
+            oldest_account["username"],
+        )
+        oldest_account["last_used"] = int(time.time())
+        oldest_account["duration"] = 0  # reset this duration
+        result_account = oldest_account
+
+    # Write the updated data back to the account file
+    try:
+        with open(PROXY_ACCOUNT_MAP_FP, "w") as file:
+            json.dump(data, file, indent=4)
+    except IOError:
+        logging.error(
+            "[Twitter] [MULTI ACCOUNTS] Error writing to 'proxy_account_list.json'."
+        )
+        return
+
+    # write
+    return result_account
+
+
+def update_proxy_account_map():
+    global _EMAIL, _USERNAME, _PASSWORD, _COOKIE_FP, RATE_LIMITED, ITEMS_PRODUCED_SESSION
+    logging.info(
+        "[Twitter] [MULTI ACCOUNTS] Closing session: updating proxy_account_list.json file"
+    )
+
+    # Read the current data from the account file
+    try:
+        with open(PROXY_ACCOUNT_MAP_FP, "r") as file:
+            data = json.load(file)
+    except FileNotFoundError:
+        logging.error(
+            "[Twitter] [MULTI ACCOUNTS] File 'proxy_account_list.json' not found."
+        )
+        return
+    except json.JSONDecodeError:
+        logging.error(
+            "[Twitter] [MULTI ACCOUNTS] Error decoding 'proxy_account_list.json'."
+        )
+        return
+    now = int(time.time())
+    duration_malus = 3 * 3600 if ( RATE_LIMITED or ITEMS_PRODUCED_SESSION == 0 ) else 0
+    if RATE_LIMITED:
+        logging.info(
+            f"[Twitter] [MULTI ACCOUNTS]  Current worker seem rate limited or buggy, we add 3 hours to its counter, to wait."
+        )
+    for account in data["accounts"]:
+        if account["email"] == _EMAIL:
+            last_used = account["last_used"]
+            if last_used == 0:
+                last_used = now - 120
+            new_duration = now - last_used + duration_malus + 60
+            logging.info(
+                f"[Twitter] [MULTI ACCOUNTS] -\tCurrent session duration: {new_duration} seconds"
+            )
+            if account["duration"] + new_duration:
+                account["duration"] += new_duration
+            account["cookies_file"] = _COOKIE_FP
+            account["last_used"] = now
+            break
+    # Write the updated data back to the account file
+    try:
+        with open(PROXY_ACCOUNT_MAP_FP, "w") as file:
+            json.dump(data, file, indent=4)
+    except IOError:
+        logging.error("Error writing to 'proxy_account_list.json'.")
+        return
+
+
+manifest_json = """
+{
+    "version": "1.0.0",
+    "manifest_version": 2,
+    "name": "Chrome Proxy",
+    "permissions": [
+        "proxy",
+        "tabs",
+        "unlimitedStorage",
+        "storage",
+        "<all_urls>",
+        "webRequest",
+        "webRequestBlocking"
+    ],
+    "background": {
+        "scripts": ["background.js"]
+    },
+    "minimum_chrome_version":"22.0.0"
+}
+"""
+
+
+def get_background_js(PROXY_HOST, PROXY_PORT, PROXY_USER, PROXY_PASS):
+
+    background_js = """
+    var config = {
+            mode: "fixed_servers",
+            rules: {
+            singleProxy: {
+                scheme: "http",
+                host: "%s",
+                port: parseInt(%s)
+            },
+            bypassList: ["localhost"]
+            }
+        };
+
+    chrome.proxy.settings.set({value: config, scope: "regular"}, function() {});
+
+    function callbackFn(details) {
+        return {
+            authCredentials: {
+                username: "%s",
+                password: "%s"
+            }
+        };
+    }
+
+    chrome.webRequest.onAuthRequired.addListener(
+                callbackFn,
+                {urls: ["<all_urls>"]},
+                ['blocking']
+    );
+    """ % (
+        PROXY_HOST,
+        PROXY_PORT,
+        PROXY_USER,
+        PROXY_PASS,
+    )
+    return background_js
+
+class CriticalFailure(Exception):
+    pass
+
+def init_driver(
+    headless=True, show_images=False, option=None, firefox=False, env=".env"
+):
+    """initiate a chromedriver or firefoxdriver instance
+    --option : other option to add (str)
     """
-    global driver
-    http_proxy = get_proxy(env)
+    global driver, MULTI_ACCOUNT_MODE
+    global _COOKIE_FP, _EMAIL, _USERNAME, _PASSWORD, _PROXY
     options = ChromeOptions()
-    # driver_path = chromedriver_autoinstaller.install()
+    # driver_path = '/usr/local/bin/chromedriver'
     logging.info("Adding options to Chromium Driver")
     binary_path = get_chrome_path()
     options.binary_location = binary_path
     logging.info(f"\tSelected Chrome executable path = {binary_path}")
     options.add_argument("--no-sandbox")
-    options.add_argument("--disable-blink-features") # Disable features that might betray automation
-    options.add_argument("--disable-blink-features=AutomationControlled") # Disables a Chrome flag that shows an 'automation' toolbar
-    options.add_experimental_option("excludeSwitches", ["enable-automation"]) # Disable automation flags
-    options.add_experimental_option('useAutomationExtension', False) # Disable automation extensions
+    options.add_argument(
+        "--disable-blink-features"
+    )  # Disable features that might betray automation
+    options.add_argument(
+        "--disable-blink-features=AutomationControlled"
+    )  # Disables a Chrome flag that shows an 'automation' toolbar
+    options.add_experimental_option(
+        "excludeSwitches", ["enable-automation"]
+    )  # Disable automation flags
+    options.add_experimental_option(
+        "useAutomationExtension", False
+    )  # Disable automation extensions
     logging.info("\tDisable automation extensions & flags")
-    options.add_argument("--headless") # Ensure GUI is off. Essential for Docker.
-    logging.info("\tHeadless")
     options.add_argument("--disable-dev-shm-usage")
-    # options.add_argument("user-data-dir=selenium") 
-    options.add_argument("disable-infobars")
+    # options.add_argument("user-data-dir=selenium")
     selected_user_agent = random.choice(user_agents)
-    options.add_argument(f'user-agent={selected_user_agent}')
+    options.add_argument(f"user-agent={selected_user_agent}")
     logging.info("\tselected_user_agent :  %s", selected_user_agent)
-    
-    # add proxy if available
-    if http_proxy is not None and len(http_proxy)>6:
-        logging.info("\tAdding a HTTP Proxy server: %s", http_proxy)
-        options.add_argument('--proxy-server=%s' % http_proxy)
+
+    selected_proxy_account = select_proxy_and_account_if_any()
+    if selected_proxy_account is not None:
+        MULTI_ACCOUNT_MODE = True
+        _EMAIL = selected_proxy_account["email"]
+        _USERNAME = selected_proxy_account["username"]
+        _PASSWORD = selected_proxy_account["password"]
+        _PROXY = selected_proxy_account["proxy"]
+        PROXY_USERNAME = selected_proxy_account["proxy_username"]
+        PROXY_PASSWORD = selected_proxy_account["proxy_password"]
+        PROXY_PORT = selected_proxy_account["proxy_port"]
+        _COOKIE_FP = selected_proxy_account["cookies_file"]
+        if _COOKIE_FP is None or _COOKIE_FP == "":
+            _COOKIE_FP = f"{_USERNAME}.pkl"
+
+        pluginfile = "proxy_auth_plugin.zip"
+        with zipfile.ZipFile(pluginfile, "w") as zp:
+            zp.writestr("manifest.json", manifest_json)
+            zp.writestr(
+                "background.js",
+                get_background_js(
+                    PROXY_HOST=_PROXY,
+                    PROXY_PORT=PROXY_PORT,
+                    PROXY_USER=PROXY_USERNAME,
+                    PROXY_PASS=PROXY_PASSWORD,
+                ),
+            )
+        options.add_extension(pluginfile)
+
+        logging.info(f"[Twitter] [MULTI ACCOUNTS] Selected Proxy: {_PROXY}")
+        logging.info(
+            f"[Twitter] [MULTI ACCOUNTS] Selected Account: {selected_proxy_account['email'], {selected_proxy_account['username']}, {print_first_and_last(selected_proxy_account['password'])}}"
+        )
+
     if headless is True:
-        # options.add_argument('--disable-gpu')
         options.headless = True
     else:
         options.headless = False
-    options.add_argument('log-level=3')
+    options.add_argument("log-level=3")
     if show_images == False and firefox == False:
         prefs = {"profile.managed_default_content_settings.images": 2}
         options.add_experimental_option("prefs", prefs)
     if option is not None:
         options.add_argument(option)
+    options.add_experimental_option("extensionLoadTimeout", 100000)
 
-    driver_path = '/usr/local/bin/chromedriver'
-    logging.info(f"Opening driver from path = {driver_path}")
-    driver = webdriver.Chrome(options=options, executable_path=driver_path)
+    try:
+        ### DEBUGGING/DEVELOPMENT
+        # driver = webdriver.Chrome(
+        #     service=Service(ChromeDriverManager().install()), options=options
+        # ) 
+        ### DOCKER 
+        driver_path = '/usr/local/bin/chromedriver'
+        logging.info(f"Opening driver from path = {driver_path}")
+        driver = webdriver.Chrome(service=Service(driver_path), options=options)
+    except:
+        logging.info("[TWITTER] [CRITICAL FAILURE] Failure to initialize the chrome driver")
+        raise CriticalFailure("")
+    if driver is None:        
+        raise CriticalFailure("[TWITTER] [CRITICAL FAILURE] Failure to initialize the chrome driver")
 
-    driver.set_page_load_timeout(7)
+    driver.set_page_load_timeout(15)
+    sleep(1)
     return driver
 
 
-def log_search_page(since, until_local, lang, display_type, word, to_account, from_account, mention_account,
-                    hashtag, filter_replies, proximity,
-                    geocode, minreplies, minlikes, minretweets):
+def log_search_page(
+    since,
+    until_local,
+    lang,
+    display_type,
+    word,
+    to_account,
+    from_account,
+    mention_account,
+    hashtag,
+    filter_replies,
+    proximity,
+    geocode,
+    minreplies,
+    minlikes,
+    minretweets,
+):
     """ Search for this query between since and until_local"""
     global driver
-    logging.info("Log search page =  %s",driver)
+    logging.info("Log search page =  %s", driver)
     # format the <from_account>, <to_account> and <hash_tags>
-    from_account = "(from%3A" + from_account + ")%20" if from_account is not None else ""
+    from_account = (
+        "(from%3A" + from_account + ")%20" if from_account is not None else ""
+    )
     to_account = "(to%3A" + to_account + ")%20" if to_account is not None else ""
-    mention_account = "(%40" + mention_account + ")%20" if mention_account is not None else ""
+    mention_account = (
+        "(%40" + mention_account + ")%20" if mention_account is not None else ""
+    )
     hash_tags = "%20(%23" + hashtag + ")%20" if hashtag is not None else ""
 
-    since = "" # "since%3A" + since + "%20"
+    since = ""  # "since%3A" + since + "%20"
 
     if display_type == "Latest" or display_type == "latest":
         display_type = "&f=live"
-    else:
-        display_type = ""
     # proximity
     if proximity == True:
         proximity = "&lf=on"  # at the end
     else:
         proximity = ""
 
-    path = 'https://twitter.com/search?q=' + word+ hash_tags + since + '&src=typed_query' + display_type + proximity
+    path = (
+        "https://twitter.com/search?q="
+        + word
+        + hash_tags
+        + since
+        + "&src=typed_query"
+        + display_type
+        + proximity
+    )
     driver.get(path)
+    sleep(1)
+
+    if "i/flow/login" in driver.current_url:
+        logging.info("[TWITTER] Problem detected, interrupting session early.")
+        raise CriticalFailure("Problem detected, interrupting session early")
+        
     return path
+
 
 def type_slow(string, element):
     for character in str(string):
         element.send_keys(character)
         sleep(random.uniform(0.05, 0.27))
 
+
 def print_first_and_last(s):
     if len(s) < 2:
         return s
     else:
-       return(s[0] + "***" + s[-1])
-        
+        return s[0] + "***" + s[-1]
+
+
 def check_and_kill_processes(process_names):
     for process_name in process_names:
         try:
             # Find processes by name
-            result = subprocess.check_output(['pgrep', '-f', process_name])
+            result = subprocess.check_output(["pgrep", "-f", process_name])
             # If the previous command did not fail, we have some processes to kill
             if result:
                 logging.info(f"[Chrome] Killing old processes for: {process_name}")
@@ -503,89 +1034,87 @@ def check_and_kill_processes(process_names):
             # If pgrep fails to find any processes, it throws an error. We catch that here and assume no processes are running
             logging.info(f"[Chrome] No running processes found for: {process_name}")
 
+
 def save_cookies(driver_):
     # Save cookies
-    pickle.dump(driver_.get_cookies(), open("cookies.pkl", "wb"))
-    logging.info("[Twitter Chrome] Saved cookies.")
+    file_to_use = "cookies.pkl"
+    if MULTI_ACCOUNT_MODE:
+        if _COOKIE_FP is not None and len(_COOKIE_FP) > 0:
+            file_to_use = _COOKIE_FP
+    pickle.dump(driver_.get_cookies(), open(file_to_use, "wb"))
+    logging.info(f"[Twitter Chrome] Saved cookies to {file_to_use}")
+
 
 def clear_cookies():
+    file_to_use = "cookies.pkl"
+    if _COOKIE_FP is not None and len(_COOKIE_FP) > 0:
+        file_to_use = _COOKIE_FP
     try:
-        open("cookies.pkl", "wb").close()
+        open(file_to_use, "wb").close()
         logging.info("Cleared cookies.")
     except Exception as e:
-        logging.info("Clear cookies error: %s",e)
+        logging.info("Clear cookies error: %s", e)
 
-def log_in(env=".env", wait=2):
+
+def log_in(env=".env", wait=1.2):
     global driver
 
     cookies_added = 0
-    target_home_url = 'https://twitter.com/home'
-    target_home = 'twitter.com/home'
-    target_bis = 'redirect_after_login=%2Fhome'
-    driver.get('https://www.twitter.com/')
-    sleep(random.uniform(2, 7))
+    target_home_url = "https://twitter.com/home"
+    target_home = "twitter.com/home"
+    target_bis = "redirect_after_login=%2Fhome"
+    driver.get("https://www.twitter.com/")
+    sleep(1)
     try:
         # Load cookies if they exist
         try:
-            cookies = pickle.load(open("cookies.pkl", "rb"))
+            file_to_use = "cookies.pkl"
+            if _COOKIE_FP is not None and len(_COOKIE_FP) > 0:
+                file_to_use = _COOKIE_FP
+            logging.info(f"[Cookies] Loading file: {file_to_use}")
+
+            cookies = pickle.load(open(file_to_use, "rb"))
         except:
             cookies = []
             logging.info("[Cookies] File not found, no cookies.")
-            
-        logging.info("[Twitter Chrome] loading existing cookies... ")  
+
+        logging.info("[Twitter Chrome] loading existing cookies... ")
         for cookie in cookies:
-            logging.info("\t-%s",cookie)
+            logging.info("\t-%s", cookie)
             # Add each cookie to the browser
             # Check if the cookie is expired
-            if 'expiry' in cookie and datett.fromtimestamp(cookie['expiry']) < datett.now():
+            if (
+                "expiry" in cookie
+                and datett.fromtimestamp(cookie["expiry"]) < datett.now()
+            ):
                 logging.info("Cookie expired")
             else:
-                try:            
-                    driver.add_cookie(cookie)                 
+                try:
+                    driver.add_cookie(cookie)
                     cookies_added += 1
                 except exceptions.InvalidCookieDomainException as e:
-                    logging.info("[Twitter Chrome] Not importable cookie: %s",e)
+                    logging.info("[Twitter Chrome] Not importable cookie: %s", e)
                 except:
-                    logging.info("[Twitter Chrome] Error for cookie %s",cookie)   
-                    cookies_not_imported += 1  
-        logging.info("[Twitter Chrome] Imported %s cookies.",cookies_added)
+                    logging.info("[Twitter Chrome] Error for cookie %s", cookie)
+                    cookies_not_imported += 1
+        logging.info("[Twitter Chrome] Imported %s cookies.", cookies_added)
     except Exception as e:
-        logging.exception("An error occured retrieving cookies: %s",e)
+        logging.exception("An error occured retrieving cookies: %s", e)
 
     sleep(random.uniform(0, 1))
-    driver.get('https://www.twitter.com/')
-    logging.info("[Twitter Chrome] refreshing to Home after cookie import.")   
-    sleep(random.uniform(1, 4))
+    logging.info("[Twitter Chrome] refreshing to Home after cookie import.")
+    sleep(random.uniform(0, 1))
     driver.get(target_home_url)
-    logging.info("[Twitter Chrome] Checking if we are on same URL...")   
-    sleep(random.uniform(1, 5))
+    logging.info("[Twitter Chrome] Checking if we are on same URL...")
+    sleep(random.uniform(0, 2))
     # Check if we are indeed on the target URL
-    logging.info("[Twitter Chrome] Current URL = %s",str(driver.current_url))   
-    # Target bis reached 
+    logging.info("[Twitter Chrome] Current URL = %s", str(driver.current_url))
+    # Target bis reached
     if target_bis in driver.current_url:
-        sleep(random.uniform(1, 5))
-        logging.info("[Twitter Chrome] Found ourselves on target bis, retying..")   
-
-        # try:
-        #     ### trying to close the window:        
-        #     sign_in_element = driver.find_element(by=By.XPATH, value='//span[contains(text(),"Sign in to Twitter")]')
-        #     sleep(random.uniform(1,3))
-        #     # check if the element is found
-        #     if sign_in_element:
-        #         logging.info("[Twitter Debug] Sign In Element found.")
-        #     else:
-        #         logging.info("[Twitter Debug] Sign In Element NOT FOUND.")
-
-        #     # click on the element
-        #     sign_in_element.click()
-        #     sleep(random.uniform(2, 5))
-        #     logging.info("[Twitter Chrome] Current URL after click = %s",driver.current_url)  
-        # except Exception as e:
-        #     logging.info("[Twitter init] error = %s",e)
-        #     pass
-
-        driver.get(target_home_url)
         sleep(random.uniform(0, 2))
+        logging.info("[Twitter Chrome] Found ourselves on target bis, retying..")
+        driver.get(target_home_url)
+        sleep(random.uniform(0, 1))
 
     if not target_home in driver.current_url:
         logging.info("[Twitter] Not on target, let's log in...")
@@ -594,29 +1123,29 @@ def log_in(env=".env", wait=2):
         password = get_password(env)  # const.PASSWORD
         username = get_username(env)  # const.USERNAME
 
-        logging.info("\t[Twitter] Email provided =  %s",email)
-        logging.info("\t[Twitter] Password provided =  %s",print_first_and_last(password))
-        logging.info("\t[Twitter] Username provided =  %s",username)
+        logging.info("\t[Twitter] Email provided =  %s", email)
+        logging.info(
+            "\t[Twitter] Password provided =  %s", print_first_and_last(password)
+        )
+        logging.info("\t[Twitter] Username provided =  %s", username)
 
-        driver.get('https://twitter.com/i/flow/login')
+        driver.get("https://twitter.com/i/flow/login")
 
         email_xpath = '//input[@autocomplete="username"]'
         password_xpath = '//input[@autocomplete="current-password"]'
         username_xpath = '//input[@data-testid="ocfEnterTextTextInput"]'
 
-        sleep(random.uniform(wait, wait + 1))
-
+        sleep(3)
         # enter email
-        logging.info("[Twitter Chrome] Current URL = %s",driver.current_url)  
+        logging.info("[Twitter Chrome] Current URL = %s", driver.current_url)
         logging.info("Entering Email..")
         email_el = driver.find_element(by=By.XPATH, value=email_xpath)
         # enter password
         if email_el:
             logging.info("[Login] found email element")
         sleep(random.uniform(wait, wait + 1))
-        # email_el.send_keys(email)        
+        # email_el.send_keys(email)
         type_slow(email, email_el)
-
         sleep(random.uniform(wait, wait + 1))
         email_el.send_keys(Keys.RETURN)
         sleep(random.uniform(wait, wait + 1))
@@ -626,10 +1155,10 @@ def log_in(env=".env", wait=2):
             username_el = driver.find_element(by=By.XPATH, value=username_xpath)
             if username_el:
                 logging.info("[Unusual Activity] found username element")
-                
+
             sleep(random.uniform(wait, wait + 1))
             logging.info("\tEntering username..")
-            # username_el.send_keys(username)        
+            # username_el.send_keys(username)
             type_slow(username, username_el)
             sleep(random.uniform(wait, wait + 1))
             username_el.send_keys(Keys.RETURN)
@@ -638,7 +1167,7 @@ def log_in(env=".env", wait=2):
         # enter password
         if password_el:
             logging.info("[Login] found password element")
-        # password_el.send_keys(password)   
+        # password_el.send_keys(password)
         logging.info("\tEntering password...")
         type_slow(password, password_el)
         sleep(random.uniform(wait, wait + 1))
@@ -646,16 +1175,18 @@ def log_in(env=".env", wait=2):
         sleep(random.uniform(0, 1))
         driver.get(target_home_url)
         sleep(random.uniform(1, 1))
-        
-        logging.info("[Twitter Login] Current URL after entering password = %s",str(driver.current_url))   
+
+        logging.info(
+            "[Twitter Login] Current URL after entering password = %s",
+            str(driver.current_url),
+        )
         if target_home in driver.current_url:
-            logging.info("Succes!")
+            logging.info("[Twitter Login] \tSucces!!!")
             save_cookies(driver)
-    else:        
+    else:
         logging.info("[Twitter] We are already logged in")
 
 
-        
 def is_within_timeframe_seconds(dt_str, timeframe_sec):
     # Convert the datetime string to a datetime object
     dt = datett.strptime(dt_str, "%Y-%m-%dT%H:%M:%S.%fZ")
@@ -675,44 +1206,85 @@ def is_within_timeframe_seconds(dt_str, timeframe_sec):
     else:
         return False
 
+
+class RateLimited(Exception):
+    def __init__(self, message="Rate limit exceeded"):
+        self.message = message
+        super().__init__(self.message)
+
+
 max_old_tweets_successive = 2
-def keep_scroling(data, tweet_ids, scrolling, tweet_parsed, limit, scroll, last_position,
-                  save_images=False):
+
+
+def keep_scroling(
+    data,
+    tweet_ids,
+    scrolling,
+    tweet_parsed,
+    limit,
+    scroll,
+    last_position,
+    save_images=False,
+):
     """ scrolling function for tweets crawling"""
-    global driver, MAX_EXPIRATION_SECONDS
+    global driver, MAX_EXPIRATION_SECONDS, RATE_LIMITED
 
     save_images_dir = "/images"
     if save_images == True:
         if not os.path.exists(save_images_dir):
             os.mkdir(save_images_dir)
-    
+
     rate_limitation = False
     successsive_old_tweets = 0
     while scrolling and tweet_parsed < limit:
         sleep(random.uniform(0.5, 1.5))
-        # get the card of tweets        
-        page_cards = driver.find_elements(by=By.XPATH, value='//article[@data-testid="tweet"]')  # changed div by article
-        logging.info("[XPath] page cards found = %s",len(page_cards))
-        if len(page_cards) == 0 and False:
-            # check if we are rate-limited      
+        # get the card of tweets
+        page_cards = driver.find_elements(
+            by=By.XPATH, value='//article[@data-testid="tweet"]'
+        )  # changed div by article
+        logging.info("[XPath] page cards found = %s", len(page_cards))
+        if len(page_cards) == 0:
+            # check if we are rate-limited
             try:
                 # wait for the popup to become visible, up to 4s (1.5s delay + 3.5s visibility)
                 wait = WebDriverWait(driver, 4)
-                element = wait.until(lambda x: x.find_element(By.XPATH, '//*[contains(text(),"Sorry, you are rate limited")]')
-                or x.find_element(By.CLASS_NAME, "css-1dbjc4n r-1awozwy r-1kihuf0 r-l5o3uw r-z2wwpe r-18u37iz r-1wtj0ep r-zd98yo r-xyw6el r-105ug2t"))
+                element = wait.until(
+                    lambda x: x.find_element(
+                        By.XPATH, '//*[contains(text(),"Sorry, you are rate limited")]'
+                    )
+                    or x.find_element(
+                        By.CLASS_NAME,
+                        "css-1dbjc4n r-1awozwy r-1kihuf0 r-l5o3uw r-z2wwpe r-18u37iz r-1wtj0ep r-zd98yo r-xyw6el r-105ug2t",
+                    )
+                )
 
                 # if we found the element, print that it was found
-                logging.info("********\n********\n********\n\t\tYOUR TWITTER ACCOUNT IS NOW RATE LIMITED\n\n********\n********\n********")
+                logging.info(
+                    "********\n********\n********\n\t\tYOUR TWITTER ACCOUNT IS NOW RATE LIMITED\n\n********\n********\n********"
+                )
                 rate_limitation = True
-                return data, tweet_ids, scrolling, tweet_parsed, scroll, last_position, rate_limitation
+                RATE_LIMITED = True
+                raise RateLimited("Twitter Account Viewing Rate Limit Exceeded")
+
+                return (
+                    data,
+                    tweet_ids,
+                    scrolling,
+                    tweet_parsed,
+                    scroll,
+                    last_position,
+                    rate_limitation,
+                )
             except Exception as e:
-                logging.info("[XPath] Rate limitation - can't find any error popup - %s",e)
+                logging.info(
+                    "[XPath] Rate limitation - can't find any error popup - %s", e
+                )
         for card in page_cards:
             tweet = get_data(card)
-            logging.debug("[XPath] Tweet visible currently = %s",len(page_cards))
+            logging.debug("[XPath] Tweet visible currently = %s", len(page_cards))
             if tweet:
                 # check if the tweet is unique
-                tweet_id = ''.join(tweet[:-2])
+                tweet_id = "".join(tweet[:-2])
                 last_date = str(tweet[2])
                 if tweet_id not in tweet_ids:
                     if is_within_timeframe_seconds(last_date, MAX_EXPIRATION_SECONDS):
@@ -724,9 +1296,20 @@ def keep_scroling(data, tweet_ids, scrolling, tweet_parsed, limit, scroll, last_
                         successsive_old_tweets = 0
                     else:
                         logging.info("[Twitter Selenium] Old Tweet:  %s", tweet[3])
-                        successsive_old_tweets +=1
-                    if successsive_old_tweets >= max_old_tweets_successive or  tweet_parsed >= limit:
-                        return data, tweet_ids, scrolling, tweet_parsed, scroll, last_position, rate_limitation
+                        successsive_old_tweets += 1
+                    if (
+                        successsive_old_tweets >= max_old_tweets_successive
+                        or tweet_parsed >= limit
+                    ):
+                        return (
+                            data,
+                            tweet_ids,
+                            scrolling,
+                            tweet_parsed,
+                            scroll,
+                            last_position,
+                            rate_limitation,
+                        )
         scroll_attempt = 0
         while tweet_parsed < limit:
             # check scroll position
@@ -738,7 +1321,7 @@ def keep_scroling(data, tweet_ids, scrolling, tweet_parsed, limit, scroll, last_
 
             # scroll to a random position between current position and total height
             random_scroll_position = random.uniform(curr_position, total_height)
-            logging.info("Scrolling %s",str(random_scroll_position))
+            logging.info("Scrolling %s", str(random_scroll_position))
             driver.execute_script(f"window.scrollTo(0, {random_scroll_position});")
             # driver.execute_script('window.scrollTo(0, document.body.scrollHeight);')
             curr_position = driver.execute_script("return window.pageYOffset;")
@@ -753,7 +1336,15 @@ def keep_scroling(data, tweet_ids, scrolling, tweet_parsed, limit, scroll, last_
             else:
                 last_position = curr_position
                 break
-    return data, tweet_ids, scrolling, tweet_parsed, scroll, last_position, rate_limitation
+    return (
+        data,
+        tweet_ids,
+        scrolling,
+        tweet_parsed,
+        scroll,
+        last_position,
+        rate_limitation,
+    )
 
 
 def check_exists_by_link_text(text, driver):
@@ -772,22 +1363,41 @@ def check_exists_by_xpath(xpath, driver):
         return False
     return True
 
+
 def extract_tweet_info(tweet_tuple):
     content = tweet_tuple[3]
     author = tweet_tuple[0]
     created_at = tweet_tuple[2]
     title = tweet_tuple[0]
-    domain = 'twitter.com'
+    domain = "twitter.com"
     url = tweet_tuple[-1]
-    external_id = url.split('/')[-1]  # This assumes that the tweet ID is always the last part of the URL.
-    
+    external_id = url.split("/")[
+        -1
+    ]  # This assumes that the tweet ID is always the last part of the URL.
+
     return content, author, created_at, title, domain, url, external_id
 
 
-async def scrape_(until=None, keyword="bitcoin", to_account=None, from_account=None, mention_account=None, interval=5, lang=None,
-          headless=True, limit=float("inf"), display_type="latest", resume=False, proxy=None, hashtag=None, max_items_to_collect = 100,
-          show_images=False, save_images=False, save_dir="outputs", filter_replies=False, proximity=False, max_search_page_tries = 3,
-          geocode=None, minreplies=None, minlikes=None, minretweets=None) -> AsyncGenerator[Item, None]:
+async def scrape_(
+    until=None,
+    keyword="bitcoin",
+    to_account=None,
+    from_account=None,
+    mention_account=None,
+    interval=5,
+    lang=None,
+    limit=float("inf"),
+    display_type="latest",
+    hashtag=None,
+    max_items_to_collect=20,
+    filter_replies=False,
+    proximity=False,
+    max_search_page_tries=3,
+    geocode=None,
+    minreplies=None,
+    minlikes=None,
+    minretweets=None,
+) -> AsyncGenerator[Item, None]:
     """
     Asynchronously scrape data from twitter using requests, starting from <since> until <until>. The program make a search between each <since> and <until_local>
     until it reaches the <until> date if it's given, else it stops at the actual date.
@@ -797,21 +1407,30 @@ async def scrape_(until=None, keyword="bitcoin", to_account=None, from_account=N
     """
     global driver
     global status_rate_limited
+    global ITEMS_PRODUCED_SESSION
+    ITEMS_PRODUCED_SESSION = 0
     if status_rate_limited:
-        logging.debug("[Twitter Status: Rate limited] Preventingly not starting scraping.")
+        logging.debug(
+            "[Twitter Status: Rate limited] Preventingly not starting scraping."
+        )
         return
         yield
 
-    logging.info("\tScraping latest tweets on keyword =  %s",keyword)
-    # ------------------------- Variables : 
-    # list that contains all data 
+    if driver is None:
+        raise CriticalFailure("Driver is not initialized properly!")
+
+    logging.info("\tScraping latest tweets on keyword =  %s", keyword)
+    # ------------------------- Variables :
+    # list that contains all data
     data = []
     # unique tweet ids
     tweet_ids = set()
     # start scraping from <since> until <until>
     since = datetime.date.today().strftime("%Y-%m-%d")
     # add the <interval> to <since> to get <until_local> for the first refresh
-    until_local = datetime.datetime.strptime(since, '%Y-%m-%d') + datetime.timedelta(days=interval)
+    until_local = datetime.datetime.strptime(since, "%Y-%m-%d") + datetime.timedelta(
+        days=interval
+    )
     # if <until>=None, set it to the actual date
     if until is None:
         until = datetime.date.today().strftime("%Y-%m-%d")
@@ -819,67 +1438,108 @@ async def scrape_(until=None, keyword="bitcoin", to_account=None, from_account=N
     # set refresh at 0. we refresh the page for each <interval> of time.
     refresh = 0
 
-    #------------------------- start scraping : keep searching until until
+    # ------------------------- start scraping : keep searching until until
     # open the file
     logging.info("\tStart collecting tweets....")
     nb_search_tries = 0
     # log search page for a specific <interval> of time and keep scrolling unltil scrolling stops or reach the <until>
     while True:
-        if nb_search_tries >= max_search_page_tries or len(data) >= max_items_to_collect:
+        if (
+            nb_search_tries >= max_search_page_tries
+            or len(data) >= max_items_to_collect
+        ):
             break
-        
+
         scroll = 0
-        if type(since) != str :
-            since = datetime.datetime.strftime(since, '%Y-%m-%d')
-        if type(until_local) != str :
-            until_local = datetime.datetime.strftime(until_local, '%Y-%m-%d')
-        
+        if type(since) != str:
+            since = datetime.datetime.strftime(since, "%Y-%m-%d")
+        if type(until_local) != str:
+            until_local = datetime.datetime.strftime(until_local, "%Y-%m-%d")
+
         # logging.info("Start log_search_page....")
         nb_search_tries += 1
-        
-        path = log_search_page(word=keyword, since=since,
-                        until_local=until_local, to_account=to_account,
-                        from_account=from_account, mention_account=mention_account, hashtag=hashtag, lang=lang, 
-                        display_type=display_type, filter_replies=filter_replies, proximity=proximity,
-                        geocode=geocode, minreplies=minreplies, minlikes=minlikes, minretweets=minretweets)
+
+        path = log_search_page(
+            word=keyword,
+            since=since,
+            until_local=until_local,
+            to_account=to_account,
+            from_account=from_account,
+            mention_account=mention_account,
+            hashtag=hashtag,
+            lang=lang,
+            display_type=display_type,
+            filter_replies=filter_replies,
+            proximity=proximity,
+            geocode=geocode,
+            minreplies=minreplies,
+            minlikes=minlikes,
+            minretweets=minretweets,
+        )
         refresh += 1
         # logging.info("Start execute_script....")
         last_position = driver.execute_script("return window.pageYOffset;")
         scrolling = True
         # logging.info("looking for tweets between " + str(since) + " and " + str(until_local) + " ...")
-        logging.info("\tURL being parsed :  %s",str(path))
+        logging.info("\tURL being parsed :  %s", str(path))
         tweet_parsed = 0
         sleep(random.uniform(0.5, 1.5))
         # logging.info("Start scrolling & get tweets....")
-        data, tweet_ids, scrolling, tweet_parsed, scroll, last_position, rate_limited = \
-            keep_scroling(data, tweet_ids, scrolling, tweet_parsed, limit, scroll, last_position)
+        (
+            data,
+            tweet_ids,
+            scrolling,
+            tweet_parsed,
+            scroll,
+            last_position,
+            rate_limited,
+        ) = keep_scroling(
+            data, tweet_ids, scrolling, tweet_parsed, limit, scroll, last_position
+        )
         if rate_limited:
             logging.info("[Twitter Status: Rate limited] Stopping scraping.")
             status_rate_limited = True
             break
 
-        if scroll > 50: 
+        if scroll > 50:
             logging.debug("\tReached 50 scrolls: breaking")
             break
         if type(since) == str:
-            since = datetime.datetime.strptime(since, '%Y-%m-%d') + datetime.timedelta(days=interval)
+            since = datetime.datetime.strptime(since, "%Y-%m-%d") + datetime.timedelta(
+                days=interval
+            )
         else:
             since = since + datetime.timedelta(days=interval)
         if type(since) != str:
-            until_local = datetime.datetime.strptime(until_local, '%Y-%m-%d') + datetime.timedelta(days=interval)
+            until_local = datetime.datetime.strptime(
+                until_local, "%Y-%m-%d"
+            ) + datetime.timedelta(days=interval)
         else:
             until_local = until_local + datetime.timedelta(days=interval)
 
         for tweet_tuple in data:
-            # ex: ('xxxxx', '@xxxx', '2023-06-16T10:10:59.000Z', 
-            # 'xx\n@xxxx\n·\nJun 16', '#Criptomoedas #Bitcoin\nNesta quinta-feira, 15, 
-            # a BlackRock solicitou a autorização para ofertar um fundo negociado em bolsa (ETF) de bitcoin nos Estados Unidos.\nSe aprovado, o 
-            # ETF será o primeiro dos Estados Unidos de bitcoin à vista.', '', '1', '', '1', 
+            # ex: ('xxxxx', '@xxxx', '2023-06-16T10:10:59.000Z',
+            # 'xx\n@xxxx\n·\nJun 16', '#Criptomoedas #Bitcoin\nNesta quinta-feira, 15,
+            # a BlackRock solicitou a autorização para ofertar um fundo negociado em bolsa (ETF) de bitcoin nos Estados Unidos.\nSe aprovado, o
+            # ETF será o primeiro dos Estados Unidos de bitcoin à vista.', '', '1', '', '1',
             # ['https://pbs.twimg.com/card_img/12.21654/zd45zz5?format=jpg&name=small'], 'https://twitter.com/xxxxx/status/1231456479')
             # Create a new sha1 hash
-            content_, author_, created_at_, title_, domain_, url_, external_id_ = extract_tweet_info(tweet_tuple)            
-            if keyword.lower() in author_.lower() and not keyword.lower() in content_.lower():
-                logging.info("Keyword not found in text, but in author's name, skipping this false positive.")
+            (
+                content_,
+                author_,
+                created_at_,
+                title_,
+                domain_,
+                url_,
+                external_id_,
+            ) = extract_tweet_info(tweet_tuple)
+            if (
+                keyword.lower() in author_.lower()
+                and not keyword.lower() in content_.lower()
+            ):
+                logging.info(
+                    "Keyword not found in text, but in author's name, skipping this false positive."
+                )
                 continue
             sha1 = hashlib.sha1()
             # Update the hash with the author string encoded to bytest
@@ -897,8 +1557,9 @@ async def scrape_(until=None, keyword="bitcoin", to_account=None, from_account=N
                 title=Title(title_),
                 domain=Domain(domain_),
                 url=Url(url_),
-                external_id=ExternalId(external_id_)
+                external_id=ExternalId(external_id_),
             )
+            ITEMS_PRODUCED_SESSION += 1
             yield new_tweet_item
 
 
@@ -908,106 +1569,20 @@ async def scrape_(until=None, keyword="bitcoin", to_account=None, from_account=N
 def convert_spaces_to_percent20(input_string):
     return input_string.replace(" ", "%20")
 
-
-##### SPECIAL MODE
-special_mode = True
-#TOP 222
-
-SPECIAL_KEYWORDS_LIST = ["bitcoin", "ethereum", "eth", "eth","eth","btc","btc","btc", "usdt", "cryptocurrency", "solana", "kaspa", "kas",
-    "doge", "cardano", "monero", "polkadot", "ripple", "xrp", "stablecoin", "defi", "cbdc", "nasdaq", "mark%20zuckerberg", "bezos",
-    "amazon", "helion", "sp500", "s&p500", "BNB", "ETF", "Spot%20ETF", "Bitcoin%20ETF", "Crypto","Crypto", "Crypto", "%23altcoin", "DeFi", "GameFi",
-    "NFT", "NFTs", "Cryptocurrencies", "Cryptos", "twitter", "digital", "%23airdrop", "worldcoin", "politicians", "CSPR", "Polygon matic", "paypal",
-    "police", "national%20security", "national%20emergency", "alert", "mint", "press", "zero knowledge", "big data", "analytics", "scraping",
-    "zksync", "polygon", "dogecoin", "solana%20sol", "attack", "attentat", "embassy", "embargo", "missile", "nuclear", "fusion", "startup",
-    "new project", "new startup", "promising company", "investor", "investors", "investing", "financing", "finance", "wall street", "hft trading",
-    "finance", "liquidity","tokens", "economy", "markets", "stocks", "crisis", "russia", "war", "ukraine", "currency", "currencies",
-    "legal", "legal%20tender", "official", "announcement", "breaking%20news", "newsflash", "newsfeed", "congress", "us%20president", "senate", 
-    "senator", "senators", "white house", "elisee", "kremlin", "moscow", "putin", "impeachment", "macron", "EU", "parliament", "government",
-    "governments", "authocraty", "democracy", "fascist", "communist", "extremism", "populism", "conservatives", "libertarian", "politician", 
-    "LVMH", "Elon%20musk", "conflict", "bank", "Gensler", "decentralized", "riots", "nft", "nftcommunity", "nft%20latform", "nfts",
-    "security%20token", "utility%20token", "protocols", "web3",  "airdrop", "airdrops", "fair%20launch", "erc20", "worldcoin","worldcoin",
-    "Nasdaq%20100", "France", "United%20states", "USA", "China", "Germany", "Europe", "European%20union%20(EU)", "Canada", "sam%20altman",
-    "Mexico", "Brazil", "%23price", "market", "%23NYSE","%23NASDAQ", "%23CAC", "CAC40", "%23G20", "%23OilPrice", "FTSE", "NYSE",
-    "WallStreet", "money", "forex", "trading", "currency", "%23USD", "WarrenBuffett", "Black%20Rock", "Berkshire", "%23IPO", "worldcoin",
-    "Apple", "Tesla","Alphabet%20(GOOG)", "FB%20stock","debt", "%23bonds", "XAUUSD", "%23SP500", "DowJones", "satoshi",
-    "AUDNZD", "USDEUR", "EURUSD", "forex", "asset%20management", "market maker", "NFLX", "COIN", "Coinbase", "Binance",
-    "Kraken", "PLTR", "takeoff", "intraday", "long", "short", "buy support", "resistance sell", "holdings", "corporation",
-    "corporate", "BlackRock", "BlackRock", "ETFs", "X.com", "Xitter", "bullish", "bearish", "bulls", "bears", "bull", "bear",
-    "company", "companies", "business", "bizness", "businesses", "million", "billion", "insider", "insider trading", "trading",
-    "growth", "decline", "plummet", "sales", "founder CEO", "founders", "BRICS", "BRICS", "BRICS", "market trends", "trading strategies",        
-    "portfolio management","economic indicators","investment advice","bull market","bear market","stock analysis","market volatility",
-    "crypto market","cryptocurrency news","crypto regulations","crypto exchange","crypto wallet","digital assets",
-    "altcoin analysis","tokenomics","crypto adoption","cryptocurrency trading","ICO","STO","smart contracts","decentralized finance",
-    "yield farming","liquidity pools","crypto lending","stablecoin trends","NFT market","NFT collectibles","NFT artists","NFT marketplace",
-    "NFT gaming","Initial Exchange Offering","stock prices","stock market news","market indices","dividend stocks","value investing","growth stocks",
-    "technical analysis","fundamental analysis","earnings report","market sentiment","options trading","futures trading","forex market",
-    "foreign exchange","currency pairs","central bank policies","interest rates","inflation","macroeconomics","business strategies",
-    "startup funding","entrepreneurship","venture capital","angel investors","small business tips","e-commerce trends","retail industry",
-    "supply chain","market disruption","digital marketing","branding","social media marketing","online advertising","business innovation",
-    "sustainability","green investing","ESG","corporate governance","mergers and acquisitions","financial planning","retirement savings",
-    "personal finance","wealth management","credit score","tax strategies","real estate investing","precious metals","commodities trading",
-    "oil prices","natural gas","agricultural futures","stock buybacks","capital markets","hedge funds","mutual funds","exchange-traded funds",
-    "index funds","private equity","technical indicators","market analysis","bullish trend","bearish trend","trading signals","market psychology",
-    "crypto influencers","regulatory developments","cryptocurrency mining","crypto wallet security","crypto taxes","stock market predictions",    
-    "market research","business growth","economic recovery","market opportunities","financial news","market updates","market watch",
-    "investor sentiment","trading volume","crypto analytics","financial data","financial markets","investment trends","capital investments",  
-    "business leadership","entrepreneurial journey","market competition","market dynamics","market insights","market outlook","market performance",
-    "market trends","market analysis","crypto investments","stock market trends","economic indicators","portfolio diversification",   
-    "investment strategies","trading opportunities","stock market analysis","market news","financial analysis","business development",   
-    "industry trends","stock picks","financial planning","investment goals","market fluctuations","market data","trading techniques",   
-    "crypto opportunities","business success","market predictions","market dynamics","financial instruments","investment insights",  
-    "trading insights","market movers","cryptocurrency insights","market overview","business insights","market exploration",    
-    "investment performance","trading updates","crypto predictions","investment opportunities","stock market updates",    
-    "Apple AAPL", "Microsoft MSFT", "Amazon AMZN", "Alphabet GOOGL", "Meta Platforms FB",
-    "Tesla TSLA", "Facebook FB", "Berkshire Hathaway BRK", "Johnson & Johnson JNJ",
-    "JPMorgan Chase JPM", "Visa V", "Procter & Gamble PG", "Mastercard MA",
-    "Walmart WMT", "UnitedHealth Group UNH", "Netflix NFLX", "Bank of America BAC",
-    "Walt Disney DIS", "Verizon VZ", "Home Depot HD", "Coca-Cola KO",
-    "NVIDIA NVDA", "Intel INTC", "Adobe ADBE", "PayPal PYPL", "Cisco Systems CSCO",    
-    # Top 25 Cryptocurrencies
-    "Bitcoin BTC", "Ethereum ETH", "Binance Coin BNB", "Solana SOL", "Cardano ADA",
-    "XRP XRP", "Polkadot DOT", "Dogecoin DOGE", "Avalanche AVAX", "Terra LUNA",
-    "Chainlink LINK", "Polygon MATIC", "Algorand ALGO", "VeChain VET", "Tezos XTZ",
-    "Stellar XLM", "Cosmos ATOM", "Filecoin FIL", "Aave AAVE", "Uniswap UNI",
-    "SushiSwap SUSHI", "Compound COMP", "Maker MKR", "Yearn.finance YFI", "Synthetix SNX",    
-    # Top 25 Companies
-    "Microsoft", "Apple", "Amazon", "Meta", "Google", "Facebook", "Tesla", "Alphabet",
-    "Berkshire Hathaway", "Johnson & Johnson", "JPMorgan Chase", "Visa", "Procter & Gamble",
-    "Mastercard", "Walmart", "UnitedHealth Group", "Netflix", "Bank of America", "Disney",
-    "Verizon", "Home Depot", "Coca-Cola", "NVIDIA", "Intel", "Adobe",
-    # Top 25 Countries and Politics
-    "USA", "China", "India", "Japan", "Germany", "UK", "France", "Russia", "Brazil", "Canada",
-    "Australia", "South Korea", "Italy", "Mexico", "Spain", "Netherlands", "Turkey", "Indonesia",
-    "Saudi Arabia", "Switzerland", "EU", "UN", "NATO", "Brexit", "Fusion power", "Superconductor",
-    # Top 25 Important Events/Topics
-    "COVID-19", "Pandemic", "Climate Change", "Elections", "Global Economy", "Inflation",
-    "Central Banks", "Federal Reserve", "Trade War", "Tech Innovation", "Space Exploration",
-    "Cybersecurity", "Digital Transformation", "Blockchain", "Cryptocurrency Regulation",
-    "DeFi", "NFTs", "Web3", "AI", "5G", "Remote Work", "Supply Chain Disruptions",
-    "Renewable Energy", "Geopolitics", "Social Movements"
-]
-
-
-NB_SPECIAL_CHECKS = 2
-############
-
-# default values
-DEFAULT_OLDNESS_SECONDS = 120
-DEFAULT_MAXIMUM_ITEMS = 25
-DEFAULT_MIN_POST_LENGTH = 10
-DEFAULT_DEFAULT_KEYWORD_WEIGHT_PICK = 0.5
-DEFAULT_CHECK_TOP_TWEETS_WEIGHT = 0.2
-
 def read_parameters(parameters):
     # Check if parameters is not empty or None
     if parameters and isinstance(parameters, dict):
         try:
-            max_oldness_seconds = parameters.get("max_oldness_seconds", DEFAULT_OLDNESS_SECONDS)
+            max_oldness_seconds = parameters.get(
+                "max_oldness_seconds", DEFAULT_OLDNESS_SECONDS
+            )
         except KeyError:
             max_oldness_seconds = DEFAULT_OLDNESS_SECONDS
 
         try:
-            maximum_items_to_collect = parameters.get("maximum_items_to_collect", DEFAULT_MAXIMUM_ITEMS)
+            maximum_items_to_collect = parameters.get(
+                "maximum_items_to_collect", DEFAULT_MAXIMUM_ITEMS
+            )
         except KeyError:
             maximum_items_to_collect = DEFAULT_MAXIMUM_ITEMS
 
@@ -1017,113 +1592,140 @@ def read_parameters(parameters):
             min_post_length = DEFAULT_MIN_POST_LENGTH
 
         try:
-            pick_default_keyword_weight = parameters.get("pick_default_keyword_weight", DEFAULT_DEFAULT_KEYWORD_WEIGHT_PICK)
+            pick_default_keyword_weight = parameters.get(
+                "pick_default_keyword_weight", DEFAULT_DEFAULT_KEYWORD_WEIGHT_PICK
+            )
         except KeyError:
             pick_default_keyword_weight = DEFAULT_DEFAULT_KEYWORD_WEIGHT_PICK
-
-        try:
-            check_top_tweets_weight = parameters.get("check_top_tweets_weight", DEFAULT_CHECK_TOP_TWEETS_WEIGHT)
-        except KeyError:
-            check_top_tweets_weight = DEFAULT_CHECK_TOP_TWEETS_WEIGHT
     else:
         # Assign default values if parameters is empty or None
         max_oldness_seconds = DEFAULT_OLDNESS_SECONDS
         maximum_items_to_collect = DEFAULT_MAXIMUM_ITEMS
         min_post_length = DEFAULT_MIN_POST_LENGTH
         pick_default_keyword_weight = DEFAULT_DEFAULT_KEYWORD_WEIGHT_PICK
-        check_top_tweets_weight = DEFAULT_CHECK_TOP_TWEETS_WEIGHT
 
-    return max_oldness_seconds, maximum_items_to_collect, min_post_length, pick_default_keyword_weight, check_top_tweets_weight
+    return (
+        max_oldness_seconds,
+        maximum_items_to_collect,
+        min_post_length,
+        pick_default_keyword_weight,
+    )
 
 
 async def query(parameters: dict) -> AsyncGenerator[Item, None]:
-    global driver, MAX_EXPIRATION_SECONDS, status_rate_limited    
+    global driver, MAX_EXPIRATION_SECONDS, status_rate_limited
 
     ## Deleting chromium tmp files taking up space
     try:
         delete_org_files_in_tmp()
     except Exception as e:
-        logging.exception(f"[Twitter init cleanup] failed: {e}")    
+        logging.exception(f"[Twitter init cleanup] failed: {e}")
 
     # forced_update()
-    max_oldness_seconds, maximum_items_to_collect, min_post_length, pick_default_keyword_weight, check_top_tweets_weight = read_parameters(parameters)
+    (
+        max_oldness_seconds,
+        maximum_items_to_collect,
+        min_post_length,
+        pick_default_keyword_weight,
+    ) = read_parameters(parameters)
     maximum_items_to_collect_special_check = 10
     MAX_EXPIRATION_SECONDS = max_oldness_seconds
     search_keyword = random.choice(SPECIAL_KEYWORDS_LIST)
     try:
-        logging.info(f"[Twitter parameters] checking url_parameters: %s",parameters)    
+        logging.info(f"[Twitter parameters] checking url_parameters: %s", parameters)
         if "url_parameters" in parameters and "keyword" in parameters["url_parameters"]:
             search_keyword = parameters["url_parameters"]["keyword"]
         if "keyword" in parameters:
-            logging.info(f"[Twitter parameters] checking url_parameters... ")    
-            search_keyword = parameters["keyword"]   
+            logging.info(f"[Twitter parameters] checking url_parameters... ")
+            search_keyword = parameters["keyword"]
     except Exception as e:
-        logging.exception(f"[Twitter parameters] Keyword input read failed: {e}")    
+        logging.exception(f"[Twitter parameters] Keyword input read failed: {e}")
 
-    if search_keyword is None or len(search_keyword) < 1 or  random.random() < pick_default_keyword_weight :        
+    if (
+        search_keyword is None
+        or len(search_keyword) < 1
+        or random.random() < pick_default_keyword_weight
+    ):
         search_keyword = random.choice(SPECIAL_KEYWORDS_LIST)
 
     search_keyword = convert_spaces_to_percent20(search_keyword)
-    logging.info("[Twitter] internal Keyword used = %s",search_keyword)
+    logging.info("[Twitter] internal Keyword used = %s", search_keyword)
     logging.getLogger("selenium").setLevel(logging.WARNING)
     select_login_based_scraper = False
     if check_env():
         select_login_based_scraper = True
     if select_login_based_scraper:
         # Selenium track A: login based
-        try:          
+        try:
             try:
-                check_and_kill_processes(["chromium","chromedriver", "google-chrome"])
+                check_and_kill_processes(["chromium", "chromedriver", "google-chrome"])
             except Exception as e:
-                logging.info("Could not kill existing processes: %s",e)
+                logging.info("[Twitter] [Kill old chromium processes] Error: %s", e)
             try:
                 logging.info("[Twitter] Open driver")
-                driver = init_driver(headless=True, show_images=False, proxy=None)
-                logging.info("[Twitter] Chrome Selenium Driver =  %s",driver)
+                driver = init_driver(headless=True, show_images=False)
+                logging.info("[Twitter] Chrome Selenium Driver =  %s", driver)
                 logging.info("[TWITTER LOGIN] Trying...")
                 log_in()
                 logging.info("[Twitter] Logged in.")
+            except CriticalFailure as e:
+                 logging.info("[Twitter] Critical failure:  %s", e)
             except Exception as e:
-                logging.info("[Twitter] Exception during Twitter Init:  %s",e)
+                logging.info("[Twitter] Exception during Twitter Init:  %s", e)
 
-            try:         
-
-                selected_display_type = "latest"                
-                if random.random() < check_top_tweets_weight :        
-                    selected_display_type = "top"
-
-                logging.info(f"[Twitter] Looking at keyword: {search_keyword} in mode: {selected_display_type}")
-                async for result in scrape_( keyword=search_keyword, display_type=selected_display_type, limit=maximum_items_to_collect):
+            try:
+                async for result in scrape_(
+                    keyword=search_keyword,
+                    display_type="latest",
+                    limit=maximum_items_to_collect,
+                ):
                     yield result
                 if special_mode:
-                    logging.info("[Twitter] Special mode, checking %s special keywords",NB_SPECIAL_CHECKS)
+                    logging.info(
+                        "[Twitter] Special mode, checking %s special keywords",
+                        NB_SPECIAL_CHECKS,
+                    )
                     for _ in range(NB_SPECIAL_CHECKS):
-                                
-                        selected_display_type = "latest"                
-                        if random.random() < check_top_tweets_weight :        
-                            selected_display_type = "top"
-
                         special_keyword = random.choice(SPECIAL_KEYWORDS_LIST)
-                        logging.info(f"[Twitter] [Special mode] Looking at keyword: {special_keyword} in mode: {selected_display_type}")
-                        async for result in scrape_(keyword=special_keyword, display_type=selected_display_type, limit=maximum_items_to_collect_special_check):
+                        logging.info(
+                            "[Twitter] [Special mode] Looking at keyword: %s",
+                            special_keyword,
+                        )
+                        async for result in scrape_(
+                            keyword=special_keyword,
+                            display_type="latest",
+                            limit=maximum_items_to_collect_special_check,
+                        ):
                             yield result
-
             except Exception as e:
-                logging.info("Failed to scrape_() tweets. Error =  %s",e)
-                pass          
+                logging.info("Failed to scrape tweets. Error =  %s", e)
+                pass
+        except CriticalFailure as e:
+            logging.exception("[Twitter] CriticalFailure during execution =  %s", e)
+            pass
         except Exception as e:
-            logging.info("[Twitter] Exception in during execution =  %s",e)
-        finally:     
+            logging.exception("[Twitter] Exception in during execution =  %s", e)
+        finally:
             try:
-                if driver is not None: 
-                    logging.info("[Twitter] Close driver")
-                    driver.close()
-                    sleep(3) # the 3 seconds rule
-                    logging.info("[Twitter] Quit driver")
-                    driver.quit()
+                if MULTI_ACCOUNT_MODE:
+                    logging.info("[Twitter] [MULTI ACCOUNTS] Finalization process")
+                    # UPDATE ACCOUNT/PROXY METADATA
+                    update_proxy_account_map()
+                    if driver is not None:
+                        logging.info("[Twitter] Close driver")
+                        driver.close()
+                        sleep(3)  # the 3 seconds rule
+                        logging.info("[Twitter] Quit driver")
+                        driver.quit()
+                logging.info("[Twitter] End.")
+                    
             except Exception as e:
-                logging.info("[Twitter Driver] Exception while closing/quitting driver =  %s",e)
+                logging.exception(
+                    "[Twitter Driver] Exception while closing/quitting driver =  %s", e
+                )
 
     else:
         logging.getLogger("snscrape").setLevel(logging.WARNING)
-        logging.info("[Twitter Snscrape] Disabled because of Elon Musk. Login is required. Let's make a lot of REP!")
+        logging.info(
+            "[Twitter Snscrape] Disabled because of Elon Musk. Let's fight back, let's log in & collect!"
+        )

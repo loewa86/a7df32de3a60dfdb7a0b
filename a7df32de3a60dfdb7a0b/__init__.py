@@ -51,6 +51,7 @@ global MAX_EXPIRATION_SECONDS
 global RATE_LIMITED
 global _EMAIL, _USERNAME, _PASSWORD, _COOKIE_FP, _PROXY
 global ITEMS_PRODUCED_SESSION
+ITEMS_PRODUCED_SESSION = 0
 RATE_LIMITED = False
 MULTI_ACCOUNT_MODE = False
 PROXY_ACCOUNT_MAP_FP = "proxy_account_list.json"
@@ -867,9 +868,9 @@ def init_driver(
     options.add_argument(
         "--disable-blink-features"
     )  # Disable features that might betray automation
-    options.add_argument(
-        "--disable-gpu"
-    )  # GPU rendering
+    # options.add_argument(
+    #     "--disable-gpu"
+    # )  # GPU rendering
     options.add_argument(
         "--disable-blink-features=AutomationControlled"
     )  # Disables a Chrome flag that shows an 'automation' toolbar
@@ -885,13 +886,15 @@ def init_driver(
     selected_user_agent = random.choice(user_agents)
     options.add_argument(f"user-agent={selected_user_agent}")
     logging.info("\tselected_user_agent :  %s", selected_user_agent)
-    if headless is True:
-        headless_mode = "--headless=new"
-        options.add_argument(headless_mode)
-        logging.info(f"\theadless mode used : {headless_mode}")
 
     selected_proxy_account = select_proxy_and_account_if_any()
     if selected_proxy_account is not None:
+            
+        if headless is True:
+            headless_mode = "--headless=new"
+            options.add_argument(headless_mode)
+            logging.info(f"\theadless mode used : {headless_mode}")
+
         MULTI_ACCOUNT_MODE = True
         _EMAIL = selected_proxy_account["email"]
         _USERNAME = selected_proxy_account["username"]
@@ -923,6 +926,11 @@ def init_driver(
         logging.info(
             f"[Twitter] [MULTI ACCOUNTS] Selected Account: {selected_proxy_account['email'], {selected_proxy_account['username']}, {print_first_and_last(selected_proxy_account['password'])}}"
         )
+    else:        
+        if headless is True:
+            headless_mode = "--headless"
+            options.add_argument(headless_mode)
+            logging.info(f"\theadless mode used : {headless_mode}")
 
     options.add_argument("log-level=3")
     if show_images == False and firefox == False:
@@ -946,8 +954,7 @@ def init_driver(
     if driver is None:        
         raise CriticalFailure("[TWITTER] [CRITICAL FAILURE] Failure to initialize the chrome driver")
 
-    driver.set_page_load_timeout(15)
-    sleep(1)
+    driver.set_page_load_timeout(8)
     return driver
 
 
@@ -1245,7 +1252,7 @@ def keep_scroling(
             by=By.XPATH, value='//article[@data-testid="tweet"]'
         )  # changed div by article
         logging.info("[XPath] page cards found = %s", len(page_cards))
-        if len(page_cards) == 0:
+        if len(page_cards) == 0 and False:
             # check if we are rate-limited
             try:
                 # wait for the popup to become visible, up to 4s (1.5s delay + 3.5s visibility)
@@ -1410,7 +1417,6 @@ async def scrape_(
     global driver
     global status_rate_limited
     global ITEMS_PRODUCED_SESSION
-    ITEMS_PRODUCED_SESSION = 0
     if status_rate_limited:
         logging.debug(
             "[Twitter Status: Rate limited] Preventingly not starting scraping."

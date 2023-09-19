@@ -354,7 +354,38 @@ def delete_org_files_in_tmp():
                     logging.exception(f"[DISK CLEANUP] Error deleting {filename}: {e}")
 
     except Exception as e:
-        logging.exception(f"An error occurred: {e}")
+        logging.exception(f"[DISK CLEANUP] An error occurred: {e}")
+
+
+def delete_core_files():
+    current_folder = "/exorde/"
+    target_prefix = "core."
+    # delete all files in /exorde/ that are starting with core.* (no extension)
+    try:
+        # check if the /exorde/ folder exists
+        if not os.path.exists(current_folder):
+            logging.info(f"[DISK CLEANUP] Error: The directory '/exorde/' does not exist.")
+            return
+        
+        # iterate through the files in /exorde/ folder
+        for filename in os.listdir(current_folder):
+            # find all files  starting with core.* (no extension), example core.4000 core.2315331 core.1
+            if filename.startswith(target_prefix) and not filename.endswith(".json"):   
+                file_path = os.path.join(current_folder, filename)
+                # try to remove the file
+                try:
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                        logging.info(f"[DISK CLEANUP] Deleted file: {filename}")
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                        logging.info(f"[DISK CLEANUP] Deleted directory: {filename}")
+                # handle permission errors and other exceptions
+                except Exception as e:
+                    logging.exception(f"[DISK CLEANUP] Error deleting {filename}: {e}")
+
+    except Exception as e:
+        logging.exception(f"[DISK CLEANUP]An error occurred: {e}")
 
 
 def cleanhtml(raw_html):
@@ -1626,6 +1657,11 @@ async def query(parameters: dict) -> AsyncGenerator[Item, None]:
         delete_org_files_in_tmp()
     except Exception as e:
         logging.exception(f"[Twitter init cleanup] failed: {e}")
+    try:
+        delete_core_files()
+    except Exception as e:
+        logging.exception(f"[Twitter core. files cleanup] failed: {e}")
+
 
     # forced_update()
     (

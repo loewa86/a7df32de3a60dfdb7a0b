@@ -1591,7 +1591,6 @@ async def scrape_(
                 content=Content(content_),
                 author=Author(author_sha1_hex),
                 created_at=CreatedAt(created_at_),
-                title=Title(title_),
                 domain=Domain(domain_),
                 url=Url(url_),
                 external_id=ExternalId(external_id_),

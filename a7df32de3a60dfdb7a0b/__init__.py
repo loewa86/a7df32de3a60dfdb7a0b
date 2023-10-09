@@ -70,6 +70,7 @@ driver = None
 
 ##### SPECIAL MODE
 # TOP 222
+
 SPECIAL_KEYWORDS_LIST = [
     "bitcoin",
     "ethereum",
@@ -969,13 +970,13 @@ manifest_json = """
 
 
 def get_background_js(PROXY_HOST, PROXY_PORT, PROXY_USER, PROXY_PASS):
-
+# Changed the scheme from http to socks5 since main target are to use socks5
     background_js = """
     var config = {
             mode: "fixed_servers",
             rules: {
             singleProxy: {
-                scheme: "http",
+                scheme: "socks5",
                 host: "%s",
                 port: parseInt(%s)
             },
@@ -1098,7 +1099,7 @@ def init_driver(
         options.add_experimental_option("prefs", prefs)
     if option is not None:
         options.add_argument(option)
-    options.add_experimental_option("extensionLoadTimeout", 100000)
+    #options.add_experimental_option("extensionLoadTimeout", 100000) # This dont work, useless
     try:
         ### DEBUGGING/DEVELOPMENT
         # driver = webdriver.Chrome(
@@ -1114,7 +1115,7 @@ def init_driver(
     if driver is None:        
         raise CriticalFailure("[TWITTER] [CRITICAL FAILURE] Failure to initialize the chrome driver")
 
-    driver.set_page_load_timeout(8)
+    driver.set_page_load_timeout(120)
     return driver
 
 
@@ -1203,27 +1204,32 @@ def check_and_kill_processes(process_names):
             # If pgrep fails to find any processes, it throws an error. We catch that here and assume no processes are running
             logging.info(f"[Chrome] No running processes found for: {process_name}")
 
-
 def save_cookies(driver_):
     # Save cookies
-    file_to_use = "cookies.pkl"
+    file_to_use = "/home/cookies.pkl"
     if MULTI_ACCOUNT_MODE:
         if _COOKIE_FP is not None and len(_COOKIE_FP) > 0:
-            file_to_use = _COOKIE_FP
-    pickle.dump(driver_.get_cookies(), open(file_to_use, "wb"))
-    logging.info(f"[Twitter Chrome] Saved cookies to {file_to_use}")
-
+            file_to_use = "/home/" + _COOKIE_FP
+    try:
+        with open(file_to_use, "wb") as file:
+            pickle.dump(driver_.get_cookies(), file)
+        logging.info("[Twitter Chrome] Saved cookies to %s", file_to_use)
+    except Exception as e:
+        logging.error("Error saving cookies: %s", e)
 
 def clear_cookies():
-    file_to_use = "cookies.pkl"
+    file_to_use = "/home/cookies.pkl"
     if _COOKIE_FP is not None and len(_COOKIE_FP) > 0:
-        file_to_use = _COOKIE_FP
+        file_to_use = "/home/" + _COOKIE_FP
     try:
-        open(file_to_use, "wb").close()
-        logging.info("Cleared cookies.")
+        # Check if the file exists to avoid creating an empty file if it doesn't
+        if os.path.exists(file_to_use):
+            open(file_to_use, "wb").close()
+            logging.info("Cleared cookies.")
+        else:
+            logging.warning("Cookie file does not exist, no cookies cleared: %s", file_to_use)
     except Exception as e:
-        logging.info("Clear cookies error: %s", e)
-
+        logging.error("Clear cookies error: %s", e)
 
 def log_in(env=".env", wait=1.2):
     global driver
@@ -1234,41 +1240,45 @@ def log_in(env=".env", wait=1.2):
     target_bis = "redirect_after_login=%2Fhome"
     driver.get("https://www.twitter.com/")
     sleep(1)
+    
+    # Load cookies if they exist
     try:
-        # Load cookies if they exist
-        try:
-            file_to_use = "cookies.pkl"
-            if _COOKIE_FP is not None and len(_COOKIE_FP) > 0:
-                file_to_use = _COOKIE_FP
-            logging.info(f"[Cookies] Loading file: {file_to_use}")
+        file_to_use = "/home/cookies.pkl"
+        if _COOKIE_FP is not None and len(_COOKIE_FP) > 0:
+            file_to_use = os.path.join("/home", _COOKIE_FP)
+        logging.info(f"[Cookies] Loading file: {file_to_use}")
 
-            cookies = pickle.load(open(file_to_use, "rb"))
-        except:
-            cookies = []
-            logging.info("[Cookies] File not found, no cookies.")
-
-        logging.info("[Twitter Chrome] loading existing cookies... ")
-        for cookie in cookies:
-            logging.info("\t-%s", cookie)
-            # Add each cookie to the browser
-            # Check if the cookie is expired
-            if (
-                "expiry" in cookie
-                and datett.fromtimestamp(cookie["expiry"]) < datett.now()
-            ):
-                logging.info("Cookie expired")
-            else:
-                try:
-                    driver.add_cookie(cookie)
-                    cookies_added += 1
-                except exceptions.InvalidCookieDomainException as e:
-                    logging.info("[Twitter Chrome] Not importable cookie: %s", e)
-                except:
-                    logging.info("[Twitter Chrome] Error for cookie %s", cookie)
-                    cookies_not_imported += 1
-        logging.info("[Twitter Chrome] Imported %s cookies.", cookies_added)
+        with open(file_to_use, "rb") as file:
+            cookies = pickle.load(file)
+    except FileNotFoundError:
+        cookies = []
+        logging.info("[Cookies] File not found, no cookies.")
     except Exception as e:
-        logging.exception("An error occured retrieving cookies: %s", e)
+        cookies = []
+        logging.error("[Cookies] Error loading cookies: %s", e)
+
+    logging.info("[Twitter Chrome] loading existing cookies... ")
+    for cookie in cookies:
+        logging.info("\t-%s", cookie)
+        # Check if the cookie is expired
+        if (
+            # Ensure that the expiry is represented as a Unix timestamp, and utilize the current date, also in Unix timestamp format, for comparison
+            "expiry" in cookie
+            and cookie["expiry"] < int(time.time())
+            #"expiry" in cookie
+            #and datett.fromtimestamp(cookie["expiry"]) < datett.now()
+        ):
+            logging.info("Cookie expired")
+        else:
+            try:
+                driver.add_cookie(cookie)
+                cookies_added += 1
+            except exceptions.InvalidCookieDomainException as e:
+                logging.info("[Twitter Chrome] Not importable cookie: %s", e)
+            except:
+                logging.info("[Twitter Chrome] Error for cookie %s", cookie)
+                cookies_not_imported += 1
+    logging.info("[Twitter Chrome] Imported %s cookies.", cookies_added)
 
     sleep(random.uniform(0, 1))
     logging.info("[Twitter Chrome] refreshing to Home after cookie import.")
@@ -1285,7 +1295,8 @@ def log_in(env=".env", wait=1.2):
         driver.get(target_home_url)
         sleep(random.uniform(0, 1))
 
-    if not target_home in driver.current_url:
+    # If no cookies were added or the current URL is not the target home, proceed with manual login
+    if cookies_added == 0 or not target_home in driver.current_url:
         logging.info("[Twitter] Not on target, let's log in...")
         clear_cookies()
         email = get_email(env)  # const.EMAIL
@@ -1293,9 +1304,7 @@ def log_in(env=".env", wait=1.2):
         username = get_username(env)  # const.USERNAME
 
         logging.info("\t[Twitter] Email provided =  %s", email)
-        logging.info(
-            "\t[Twitter] Password provided =  %s", print_first_and_last(password)
-        )
+        logging.info("\t[Twitter] Password provided =  %s", print_first_and_last(password))
         logging.info("\t[Twitter] Username provided =  %s", username)
 
         driver.get("https://twitter.com/i/flow/login")
@@ -1313,7 +1322,6 @@ def log_in(env=".env", wait=1.2):
         if email_el:
             logging.info("[Login] found email element")
         sleep(random.uniform(wait, wait + 1))
-        # email_el.send_keys(email)
         type_slow(email, email_el)
         sleep(random.uniform(wait, wait + 1))
         email_el.send_keys(Keys.RETURN)
@@ -1327,7 +1335,6 @@ def log_in(env=".env", wait=1.2):
 
             sleep(random.uniform(wait, wait + 1))
             logging.info("\tEntering username..")
-            # username_el.send_keys(username)
             type_slow(username, username_el)
             sleep(random.uniform(wait, wait + 1))
             username_el.send_keys(Keys.RETURN)
@@ -1336,7 +1343,6 @@ def log_in(env=".env", wait=1.2):
         # enter password
         if password_el:
             logging.info("[Login] found password element")
-        # password_el.send_keys(password)
         logging.info("\tEntering password...")
         type_slow(password, password_el)
         sleep(random.uniform(wait, wait + 1))
@@ -1345,12 +1351,9 @@ def log_in(env=".env", wait=1.2):
         driver.get(target_home_url)
         sleep(random.uniform(1, 1))
 
-        logging.info(
-            "[Twitter Login] Current URL after entering password = %s",
-            str(driver.current_url),
-        )
+        logging.info("[Twitter Login] Current URL after entering password = %s", str(driver.current_url))
         if target_home in driver.current_url:
-            logging.info("[Twitter Login] \tSucces!!!")
+            logging.info("[Twitter Login] \tSuccess!!!")
             save_cookies(driver)
     else:
         logging.info("[Twitter] We are already logged in")

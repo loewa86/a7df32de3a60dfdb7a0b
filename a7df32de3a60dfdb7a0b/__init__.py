@@ -1329,7 +1329,14 @@ def log_in(env=".env", wait=1.2):
         "\t[Twitter] Password provided =  %s", print_first_and_last(password)
     )
     logging.info("\t[Twitter] Username provided =  %s", username)
-    if not target_home in driver.current_url:
+    
+    login_bar_found = False
+    if check_exists_by_xpath('//a[@href="/login"]', driver):
+        logging.info("[Twitter Chrome]  Login bar at the bottom: Found")
+        login_bar_found = True
+    else:
+        logging.info("[Twitter Chrome]  Login bar at the bottom: Not Found")
+    if not target_home in driver.current_url or login_bar_found == True:
         logging.info("[Twitter] Not on target, let's log in...")
         clear_cookies()
 

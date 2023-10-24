@@ -1320,18 +1320,18 @@ def log_in(env=".env", wait=1.2):
         driver.get(target_home_url)
         sleep(random.uniform(0, 1))
 
+    email = get_email(env)  # const.EMAIL
+    password = get_password(env)  # const.PASSWORD
+    username = get_username(env)  # const.USERNAME
+
+    logging.info("\t[Twitter] Email provided =  %s", email)
+    logging.info(
+        "\t[Twitter] Password provided =  %s", print_first_and_last(password)
+    )
+    logging.info("\t[Twitter] Username provided =  %s", username)
     if not target_home in driver.current_url:
         logging.info("[Twitter] Not on target, let's log in...")
         clear_cookies()
-        email = get_email(env)  # const.EMAIL
-        password = get_password(env)  # const.PASSWORD
-        username = get_username(env)  # const.USERNAME
-
-        logging.info("\t[Twitter] Email provided =  %s", email)
-        logging.info(
-            "\t[Twitter] Password provided =  %s", print_first_and_last(password)
-        )
-        logging.info("\t[Twitter] Username provided =  %s", username)
 
         driver.get("https://twitter.com/i/flow/login")
 

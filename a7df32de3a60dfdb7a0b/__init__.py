@@ -2150,6 +2150,7 @@ async def query(parameters: dict) -> AsyncGenerator[Item, None]:
                     )
                     for _ in range(NB_SPECIAL_CHECKS):
                         special_keyword = random.choice(SPECIAL_KEYWORDS_LIST)
+                        search_keyword = convert_spaces_to_percent20(search_keyword)
                         logging.info(
                             "[Twitter] [Special mode] Looking at keyword: %s",
                             special_keyword,

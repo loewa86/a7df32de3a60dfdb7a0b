@@ -522,6 +522,7 @@ SPECIAL_KEYWORDS_LIST = [
     "senate",
     "senator",
     "senators",
+    "shardeum",
     "short",
     "silvio micali",
     "solana",

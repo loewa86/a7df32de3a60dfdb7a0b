@@ -100,6 +100,8 @@ SPECIAL_KEYWORDS_LIST = [
     "Lotus",
     "Maserati",
     "Mazda",
+    "Taiko",
+    "Taiko labs",
     "McLaren",
     "Mercedes-Benz",
     "MINI",

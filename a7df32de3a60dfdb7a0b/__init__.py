@@ -71,6 +71,11 @@ driver = None
 ##### SPECIAL MODE
 # TOP 222
 SPECIAL_KEYWORDS_LIST = [    
+    "the",
+    "the",
+    "lord",
+    "ords",
+    "brc20",
     "paris2024",
     "paris2024",
     "olympic",

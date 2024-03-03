@@ -159,6 +159,16 @@ SPECIAL_KEYWORDS_LIST = [
     "dom perignon",
     "hublot",
     "Zenith",    
+    "meme", 
+    "coin", 
+    "memecoin", 
+    "pepe", 
+    "doge", 
+    "shib",
+    "floki",
+    "dogtoken",
+    "trump token",
+    "barron token",
     "数字資産",  # Digital Asset (Japanese)
     "仮想",  # Virtual (Japanese)
     "仮想通貨",  # Virtual Currency (Japanese)

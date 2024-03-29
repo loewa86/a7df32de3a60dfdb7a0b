@@ -1808,16 +1808,21 @@ def log_in(env=".env", wait=1.2):
     sleep(1)
     try:
         # Load cookies if they exist
-        try:
-            file_to_use = "cookies.pkl"
-            if _COOKIE_FP is not None and len(_COOKIE_FP) > 0:
-                file_to_use = _COOKIE_FP
-            logging.info(f"[Cookies] Loading file: {file_to_use}")
+        SCWEET_COOKIES = os.getenv('SCWEET_COOKIES', None)
+        if SCWEET_COOKIES:
+            cookies = json.loads(SCWEET_COOKIES)
+            logging.info('[Cookies] JSON-Loaded from `env`')
+        else:
+            try:
+                file_to_use = "cookies.pkl"
+                if _COOKIE_FP is not None and len(_COOKIE_FP) > 0:
+                    file_to_use = _COOKIE_FP
+                logging.info(f"[Cookies] Loading file: {file_to_use}")
 
-            cookies = pickle.load(open(file_to_use, "rb"))
-        except:
-            cookies = []
-            logging.info("[Cookies] File not found, no cookies.")
+                cookies = pickle.load(open(file_to_use, "rb"))
+            except:
+                cookies = []
+                logging.info("[Cookies] File not found, no cookies.")
 
         logging.info("[Twitter Chrome] loading existing cookies... ")
         for cookie in cookies:
@@ -2050,7 +2055,7 @@ def keep_scroling(
                         or tweet_parsed >= limit
                     ):
                         return (
-                            data,
+                            data,pass env vars to spotters when using only 
                             tweet_ids,
                             scrolling,
                             tweet_parsed,

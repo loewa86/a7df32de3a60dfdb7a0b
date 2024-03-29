@@ -18,7 +18,7 @@ jobs:
           
           # The target repository where you want to trigger the dispatch event
           TARGET_OWNER="exorde-labs"
-          TARGET_REPO="scrap"
+          TARGET_REPO="spot"
 
           # Trigger a repository dispatch event in the target repository
           curl -X POST \

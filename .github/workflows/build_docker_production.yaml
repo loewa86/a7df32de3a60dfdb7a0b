@@ -1,6 +1,7 @@
 name: Notify External Repository on Update
 
 on:
+  workflow_dispatch:
   release:
     types: [published]
 

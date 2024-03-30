@@ -2055,7 +2055,7 @@ def keep_scroling(
                         or tweet_parsed >= limit
                     ):
                         return (
-                            data,pass env vars to spotters when using only 
+                            data,
                             tweet_ids,
                             scrolling,
                             tweet_parsed,

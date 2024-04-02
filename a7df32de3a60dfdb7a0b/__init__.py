@@ -1143,6 +1143,13 @@ def check_proxy_account_list():
 
 
 def check_env():
+    SCWEET_USERNAME = os.getenv("SCWEET_USERNAME", "")
+    SCWEET_PASSWORD = os.getenv("SCWEET_PASSWORD", "")
+    SCWEET_EMAIL = os.getenv("SCWEET_EMAIL", "")
+
+    if (SCWEET_USERNAME != "" and SCWEET_PASSWORD != "" and SCWEET_EMAIL != ""):
+        return True
+
     if check_proxy_account_list():
         return True
     # Check if the .env file exists
@@ -1916,6 +1923,7 @@ def log_in(env=".env", wait=1.2):
             sleep(random.uniform(wait, wait + 1))
             username_el.send_keys(Keys.RETURN)
             sleep(random.uniform(wait, wait + 1))
+
         password_el = driver.find_element(by=By.XPATH, value=password_xpath)
         # enter password
         if password_el:

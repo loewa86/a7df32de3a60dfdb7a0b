@@ -2044,33 +2044,37 @@ def keep_scroling(
             tweet = get_data(card)
             logging.debug("[XPath] Tweet visible currently = %s", len(page_cards))
             if tweet:
-                # check if the tweet is unique
-                tweet_id = "".join(tweet[:-2])
-                last_date = str(tweet[2])
-                if tweet_id not in tweet_ids:
-                    if is_within_timeframe_seconds(last_date, MAX_EXPIRATION_SECONDS):
-                        tweet_ids.add(tweet_id)
-                        data.append(tweet)
-                        logging.info(f"[Tweet] Date = {last_date}")
-                        logging.info("[Twitter Selenium] Found Tweet:  %s", tweet)
-                        tweet_parsed += 1
-                        successsive_old_tweets = 0
-                    else:
-                        logging.info("[Twitter Selenium] Old Tweet:  %s", tweet[3])
-                        successsive_old_tweets += 1
-                    if (
-                        successsive_old_tweets >= max_old_tweets_successive
-                        or tweet_parsed >= limit
-                    ):
-                        return (
-                            data,
-                            tweet_ids,
-                            scrolling,
-                            tweet_parsed,
-                            scroll,
-                            last_position,
-                            rate_limitation,
-                        )
+                try:
+                    # check if the tweet is unique
+                    # tweet_id = "".join(tweet[:-2])
+                    tweet_id = "".join(str(item) for item in tweet[:-2])
+                    last_date = str(tweet[2])
+                    if tweet_id not in tweet_ids:
+                        if is_within_timeframe_seconds(last_date, MAX_EXPIRATION_SECONDS):
+                            tweet_ids.add(tweet_id)
+                            data.append(tweet)
+                            logging.info(f"[Tweet] Date = {last_date}")
+                            logging.info("[Twitter Selenium] Found Tweet:  %s", tweet)
+                            tweet_parsed += 1
+                            successsive_old_tweets = 0
+                        else:
+                            logging.info("[Twitter Selenium] Old Tweet:  %s", tweet[3])
+                            successsive_old_tweets += 1
+                        if (
+                            successsive_old_tweets >= max_old_tweets_successive
+                            or tweet_parsed >= limit
+                        ):
+                            return (
+                                data,
+                                tweet_ids,
+                                scrolling,
+                                tweet_parsed,
+                                scroll,
+                                last_position,
+                                rate_limitation,
+                            )
+                except Exception as e:
+                    logging.exception(f"[Twitter] Error during tweet extraction: {e}")
         scroll_attempt = 0
         while tweet_parsed < limit:
             # check scroll position

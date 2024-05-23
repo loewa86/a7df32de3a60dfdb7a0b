@@ -1808,10 +1808,11 @@ def log_in(env=".env", wait=1.2):
     global driver
 
     cookies_added = 0
-    target_home_url = "https://twitter.com/home"
+    target_home_url = "https://x.com/home"
     target_home = "twitter.com/home"
+    target_home_bis = "x.com/home"
     target_bis = "redirect_after_login=%2Fhome"
-    driver.get("https://www.twitter.com/")
+    driver.get("https://www.x.com/")
     sleep(1)
     try:
         # Load cookies if they exist
@@ -1885,7 +1886,7 @@ def log_in(env=".env", wait=1.2):
         login_bar_found = True
     else:
         logging.info("[Twitter Chrome]  Login bar at the bottom: Not Found")
-    if not target_home in driver.current_url or login_bar_found == True:
+    if not ( target_home in driver.current_url or target_home_bis in driver.current_url ) or login_bar_found == True:
         logging.info("[Twitter] Not on target, let's log in...")
         clear_cookies()
 
@@ -1941,7 +1942,7 @@ def log_in(env=".env", wait=1.2):
             "[Twitter Login] Current URL after entering password = %s",
             str(driver.current_url),
         )
-        if target_home in driver.current_url:
+        if target_home in driver.current_url or target_home_bis in driver.current_url:
             logging.info("[Twitter Login] \tSucces!!!")
             save_cookies(driver)
     else:
@@ -2436,6 +2437,7 @@ async def query(parameters: dict) -> AsyncGenerator[Item, None]:
                 logging.info("[TWITTER LOGIN] Trying...")
                 log_in()
                 logging.info("[Twitter] Logged in.")
+                save_cookies(driver)
             except CriticalFailure as e:
                  logging.info("[Twitter] Critical failure:  %s", e)
             except Exception as e:

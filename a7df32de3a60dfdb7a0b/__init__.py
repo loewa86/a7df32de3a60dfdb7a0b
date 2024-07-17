@@ -2135,7 +2135,7 @@ def extract_tweet_info(tweet_tuple):
     author = tweet_tuple[0]
     created_at = tweet_tuple[2]
     title = tweet_tuple[0]
-    domain = "twitter.com"
+    domain = "x.com"
     url = tweet_tuple[-1]
     external_id = url.split("/")[
         -1

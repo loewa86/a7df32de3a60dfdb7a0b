@@ -2585,7 +2585,7 @@ async def query(parameters: dict) -> AsyncGenerator[Item, None]:
                 logging.info("[Twitter] Open driver")
                 driver = init_driver(headless=True, show_images=False)
                 logging.info("[Twitter] Chrome Selenium Driver =  %s", driver)
-                logging.info("[TWITTER LOGIN] Trying...")
+                logging.info("[Twitter] ------------- Trying to log in...")
                 log_in()
                 logging.info("[Twitter] Logged in.")
                 save_cookies(driver)
@@ -2603,14 +2603,14 @@ async def query(parameters: dict) -> AsyncGenerator[Item, None]:
                     yield result
                 if special_mode:
                     logging.info(
-                        "[Twitter] Special mode, checking %s special keywords",
+                        "[Twitter] Checking %s special keywords",
                         NB_SPECIAL_CHECKS,
                     )
                     for _ in range(NB_SPECIAL_CHECKS):
                         special_keyword = random.choice(SPECIAL_KEYWORDS_LIST)
                         search_keyword = convert_spaces_to_percent20(search_keyword)
                         logging.info(
-                            "[Twitter] [Special mode] Looking at keyword: %s",
+                            "[Twitter] [Special] Looking at keyword: %s",
                             special_keyword,
                         )
                         async for result in scrape_(
@@ -2647,7 +2647,6 @@ async def query(parameters: dict) -> AsyncGenerator[Item, None]:
                 )
 
     else:
-        logging.getLogger("snscrape").setLevel(logging.WARNING)
         logging.info(
-            "[Twitter Snscrape] Disabled because of Elon Musk. Let's fight back, let's log in & collect!"
+            "[Twitter Snscrape] Disabled (obsolete) - using Selenium based healthy, respectful, slow and steady scraping."
         )

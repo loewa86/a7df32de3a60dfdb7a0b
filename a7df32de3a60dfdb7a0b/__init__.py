@@ -1215,16 +1215,16 @@ def delete_org_files_in_tmp():
 
 
 def delete_core_files():
-    current_folder = "/exorde/"
+    current_folder = "/app/"
     target_prefix = "core."
-    # delete all files in /exorde/ that are starting with core.* (no extension)
+    # delete all files in /app/ that are starting with core.* (no extension)
     try:
-        # check if the /exorde/ folder exists
+        # check if the /app/ folder exists
         if not os.path.exists(current_folder):
-            logging.info(f"[DISK CLEANUP] Error: The directory '/exorde/' does not exist.")
+            logging.info(f"[DISK CLEANUP] Error: The directory '/app/' does not exist.")
             return
         
-        # iterate through the files in /exorde/ folder
+        # iterate through the files in /app/ folder
         for filename in os.listdir(current_folder):
             # find all files  starting with core.* (no extension), example core.4000 core.2315331 core.1
             if filename.startswith(target_prefix) and not filename.endswith(".json"):   
